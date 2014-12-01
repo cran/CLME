@@ -2,21 +2,18 @@
 \alias{summary.clme}
 
 \title{ S3 method to summarize results for objects of class \code{clme} }
-\description{ Summarizes the output of objects of class \code{clme}, such as those produced by \code{\link{constrained.lme}}. Prints a tabulated display of global and individual tests, as well as parameter estimates.}
+\description{ Summarizes the output of objects of class \code{clme}, such as those produced by \code{\link{clme}}. Prints a tabulated display of global and individual tests, as well as parameter estimates.}
 
 
 \usage{
-\method{summary}{clme}(object, alpha=0, dec.theta=2, dec.w=3, dec.var=4, dec.p=4, ...)
+\method{summary}{clme}(object, alpha=0.05, digits=4, ...)
 }
 
 \arguments{
-  \item{object}{an object of class \code{clme}. See \code{\link{constrained.lme}} or \code{\link{as.clme}} }
-  \item{alpha}{level of significance (produced confidence intervals for parameter estimates).}
-  \item{dec.theta}{ number of decimal places to round estimates of \eqn{\theta}{theta} coefficients. }
-  \item{dec.w}{ number of decimal places to round test statistic values. }
-  \item{dec.var}{ number of decimal places to round estimates of \eqn{\sigma^{2}}{sigma^2} and \eqn{\tau^{2}}{tau^2}. }
-  \item{dec.p}{ number of decimal places to round p-values. }
-  \item{\dots}{ additional arguments (not currently implemented). }
+  \item{object}{an object of class \code{clme}. }
+  \item{alpha}{level of significance.}
+  \item{digits}{number of decimal digits to print.}
+  \item{\dots}{ additional arguments passed to other functions. }
 }
 
 \author{ Casey M. Jelsema <casey.jelsema@nih.gov> }
@@ -27,41 +24,18 @@
 
 
 \seealso{
-\code{\link{CLME-package}}, \code{\link{constrained.lme}}
+\code{\link{CLME-package}}, \code{\link{clme}}
 }
 
 
 \examples{
 
-set.seed( 42 )
-
-n  <- 5
-P1 <- 5
-
-X1 <- diag(P1) \%x\% rep(1,n)
-X2 <- as.matrix( rep(1,P1) \%x\% runif(n , 0,2) )
-U  <- rep(1,P1) \%x\% diag(n)
-X  <- as.matrix( cbind(X1,X2) )
-
-tsq <- 1
-ssq <- 0.7
-
-Nks <- dim(X1)[1]
-Qs  <- dim(U)[2]
-
-xi <- rnorm( sum(Qs)  , 0 , rep(sqrt(tsq) , Qs)  )
-ep <- rnorm( sum(Nks) , 0 , rep(sqrt(ssq) , Nks) )  
-
-thetas <- c(2 , 3 , 3, 3 , 4 , 2 )
-Y      <- X\%*\%thetas + U\%*\%xi + ep
-const  <- list(order='simple' , decreasing=FALSE)
-
-
-# Note that 'nsim' has been reduced for illustration
-
-clme.out <- constrained.lme( method='PAVA', Y=Y, X1=X1, X2=X2, U=U,
-                     constraints=const , nsim=10 )
-
-summary.clme( clme.out )
-
+\dontrun{
+data( rat.blood )
+cons <- list(order = "simple", decreasing = FALSE, node = 1 )
+clme.out <- clme(mcv ~ time + temp + sex + (1|id), data = rat.blood , 
+                 constraints = cons, seed = 42, nsim = 10)
+                 
+summary( clme.out )
+}
 }

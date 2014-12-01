@@ -2,13 +2,12 @@
 \name{create.constraints}
 \alias{create.constraints}
 \title{ Generate common order constraints }
-\description{ Automatically generates the constraints in the format used by functions \code{\link{constrained.lme}} or \code{\link{clme.em}}. Allowed orders are simple, simple tree, and umbrella orders.  }
+\description{ Automatically generates the constraints in the format used by \code{\link{clme}}. Allowed orders are simple, simple tree, and umbrella orders.  }
 
-\usage{ create.constraints(X1, X2 = NULL, constraints) }
+\usage{ create.constraints(P1, constraints) }
 
 \arguments{
-  \item{X1}{ \eqn{N \times p_1}{Nxp1} design matrix. }
-  \item{X2}{ optional. \eqn{N \times p_2}{Nxp2} matrix of covariates. }
+  \item{P1}{ the length of \eqn{\theta_1}{theta_1}, the vector constrained coefficients. }
   \item{constraints}{ List with the elements \code{order}, \code{node}, and \code{decreasing}. See Details for further information. }
 }
 
@@ -17,21 +16,27 @@
 The elements of \code{constraints} are:
 \itemize{
 \item \code{order}: string. Currently \dQuote{simple}, \dQuote{simple.tree} and \dQuote{umbrella} are supported.
-\item \code{node}: numeric scaler, the node of the coefficients.
-\item \code{decreasing}: logical. Defines if the initial order relation is decreasing (e.g. \eqn{H_{a}: \theta_{1} \geq \theta_{2} \geq \ldots \geq \theta_{p_{1}} }{Ha: theta_1 >= theta_2 >= ... >= theta_p1}).
+\item \code{node}: numeric, the node of the coefficients (unnecessary for simple orders).
+\item \code{decreasing}: logical. For simple orders, is the trend decreasing? For umbrella and simple tree, does the nodal parameter have the greatest value (e.g., the peak, instead of the valley)?
 }
 
-See \code{\link{constrained.lme}} for more information and a depiction of these three elements.
+See \code{\link{clme}} for more information and a depiction of these three elements.
 
 }
 
 
 \value{
 The function returns a list containing the elements of input argument \code{constraints} as well as
-\item{ \code{A} }{matrix of dimension \eqn{r \times p_1}{r x p1} containing the order constraints, where r is the number of linear constraints.}
-\item{ \code{B} }{matrix containing the contrasts necessary for computation of the test statistic (may be identical to \code{A}).}
+\item{ \code{A} }{matrix of dimension \eqn{r \times 2}{r x 2} containing the order constraints, where r is the number of linear constraints.}
+\item{ \code{B} }{matrix containing the contrasts necessary for computation of the Williams' type test statistic (may be identical to \code{A}).}
+\item{ \code{Anull} }{matrix similar to \code{A} which defines all possible constraints. Used to obtain parameter estimates under the null hypothesis.}
+\item{ \code{order} }{the input argument for \code{constraints\$order}.}
+\item{ \code{node} }{the input argument for \code{constraints\$node}.}
+\item{ \code{decreasing} }{ the input argument for \code{constraints\$decreasing}}
 
 See \code{\link{w.stat}} for more information on \code{B}
+
+
 
 }
 
@@ -40,36 +45,40 @@ See \code{\link{w.stat}} for more information on \code{B}
 \author{ Casey M. Jelsema <casey.jelsema@nih.gov> }
 
 \note{
-The functions \code{\link{constrained.lme}} and \code{\link{clme.em}} both utilize the argument \code{constraints}. 
+The function \code{\link{clme}} also utilizes the argument \code{constraints}. For \code{clme}, this argument may either be identical to the argument of this function, or may be the output of \code{create.constraints} (that is, a list containing appropriate matrices \code{A}, \code{Anull}, and if necessary, \code{B}).
 
-For \code{\link{clme.em}}, this argument is intended to be the output of \code{create.constraints}. It must contain \code{A}, \code{B}, and if \code{method=}\dQuote{PAVA}, values of \code{node} or \code{decreasing} as necessary.
+An example the the \code{A} matrix might be:
+  \tabular{ccc}{
+    [1,] \tab [,1] \tab [,2] \cr
+    [2,] \tab 1    \tab 2    \cr
+    [3,] \tab 2    \tab 3    \cr
+    [4,] \tab 4    \tab 3    \cr
+    [5,] \tab 5    \tab 4    \cr
+    [6,] \tab 6    \tab 5    \cr
+  }
+  This matrix defines what \pkg{CLME} describes as a decreasing umbrella order. The first row defines the constraint that \eqn{\theta_1 \leq \theta_2}{theta_1 <= theta_2}, the second row defined the constraint \eqn{\theta_2 \leq \theta_3}{theta_2 <= theta_3}, the third row defines \eqn{\theta_4 \leq \theta_3}{theta_4 <= theta_3}, and so on. The values are indexes, and the left column is the index of the parameter constrained to be smaller.
 
-For \code{\link{constrained.lme}} it may either be the output of \code{create.constraints}, or equivalent to the argument \code{constraints} of that function.
 }
  
-
 \seealso{
-\code{\link{constrained.lme}},
-\code{\link{clme.em}}
+\code{\link{clme}},
+\code{\link{w.stat}}
 }
 
 \examples{
-n  <- 5
-P1 <- 5
-X1 <- diag(P1) \%x\% rep(1,n)
-X2 <- as.matrix( rep(1,P1) \%x\% runif(n , 0,2) )
-
+\dontrun{
 # For simple order, the node does not matter
-create.constraints( X1=X1 , constraints=list( order='simple' ,
+create.constraints( P1 = 5, constraints = list( order='simple' ,
                     decreasing=FALSE ))
 
-# See effect of covariates, compare constraints against decreasing=TRUE
-create.constraints( X1=X1 , X2=X2 , constraints=list( order='simple' , 
+# Compare constraints against decreasing=TRUE
+create.constraints( P1 = 5, constraints=list( order='simple' , 
                     decreasing=TRUE ))
 
 # Umbrella order
-create.constraints( X1=X1 , constraints=list( order='umbrella' , node=3
+create.constraints( P1 = 5, constraints=list( order='umbrella' , node=3
                     , decreasing=FALSE ))
+}
 
 }
 

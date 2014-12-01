@@ -1,15 +1,21 @@
 ===========================
 PROJECTED DEVELOPMENT:
-  - To be determined.
+- To be determined.
 
 ===========================
 VERSION HISTORY:
 
+Version 2.0-0, 2014-12-01
+- Major changes to arguments, particularly:
+- Formula interface implemented
+- Removed necessity for custom PAVA algorithms (implemented function 'activeSet' from package isotone)
+- Nks replaced with group vector input
+- Qs removed, each random term now gets individual variance
+- Provided more common methods for fitted objects
 
-===========================
-Version 1.0-0, YYYY/MM/DD
-Initial release of package.
 
+Version 1.0-0, 2014-09-09
+- Initial release of package
 
 ===========================
 Author / Maintainer:

@@ -2,89 +2,104 @@
 
 
 
-"plot.clme" <- 
-  function( x , alpha=0.05 , place.leg="below" , inset=0.01,
-            ci.wd=0 , plot.names=TRUE , ylim , cex=1.75 , pch=21 , bg="white" , 
-            xlab = expression( paste( "Component of " , theta[1] ) ),
-            ylab = expression( paste( "Estimated Value of " , theta[1] ) ) , 
-           ...){
-  
-  if( is.clme(x)==FALSE ){
-    stop("Argument 'x' is not of class clme.")
+plot.clme <- 
+  function(x , alpha=0.05 , legendx="below" , inset=0.01,
+           ci=FALSE , ylim=NULL , cex=1.75 , pch=21 , bg="white" , 
+           xlab = expression( paste( "Component of " , theta[1] ) ),
+           ylab = expression( paste( "Estimated Value of " , theta[1] ) ) , 
+           tree=NULL, ...){
+  object <- x
+  if( !is.clme(object) ){
+    stop("Argument 'object' is not of class clme.")
   } else{
     
-    theta <- c(x$theta)
-    A     <- x$constraints$A
-    r     <- dim(A)[1]
-    p1    <- max( apply( A , 1 , FUN=function(x){ max(which(x != 0)) } ) )
+    theta <- fixef(object)
+    A     <- object$constraints$A
+    r     <- nrow(A)
+    p1    <- max(A)
     
-    if( is.null(ci.wd) ){ ci.wd <- min( 1/p1 , 1/20 )  }
+    if( ci ){ 
+      ci.wd <- min( 1/p1 , 1/15 ) 
+      CIs <- confint(object, level=(1-alpha))
+    }
     
-    if( place.leg=="below" ){
+    if( legendx=="below" ){
       layout( rbind(1,2) , heights=c(7,1) )
     }
     
-    # Calculate the confidence intervals    
-    theta.lcl <- x$theta - qnorm(1-alpha/2)*sqrt(diag(x$cov.theta) )
-    theta.ucl <- x$theta + qnorm(1-alpha/2)*sqrt(diag(x$cov.theta) )
+    theta1 <- object$theta[1:p1]
     
     # Pick some reasonable plot limits
-    if( missing(ylim) ){
-      if( ci.wd>0 ){
-        ylim <- c( min(theta.lcl[1:p1]) , max(theta.ucl[1:p1]))
+    if( is.null(ylim) ){
+      if( ci ){
+        ylim <- c( min(CIs[1:p1,]) , max(CIs[1:p1,]))
       } else{
-        if( min(x$theta[1:p1]) < 0 ){ 
-          ymin <- min(x$theta[1:p1])*1.05 
+        if( min(theta1) < 0 ){ 
+          ymin <- min(theta1)*1.05 
         } else{
-          ymin <- min(x$theta[1:p1])/1.05
+          ymin <- min(theta1)/1.05
         }
-        if( max(x$theta[1:p1]) < 0 ){ 
-          ymax <- max(x$theta[1:p1])/1.05
+        if( max(theta1) < 0 ){ 
+          ymax <- max(theta1)/1.05
         } else{
-          ymax <- max(x$theta[1:p1])*1.05
+          ymax <- max(theta1)*1.05
         }
         ylim <- c( ymin , ymax )
       }
     }
     
-    # The initial plot of the points
-    plot( 1:p1 , theta[1:p1] , cex=cex , pch=pch , bg=bg ,
-        ylim = ylim , xaxt='n' , xlab = xlab , ylab = ylab , ... )
+    if( is.null(tree) ){
+      tree <- object$order$order == "simple.tree"      
+    }
     
     
-    if( plot.names==TRUE & is.null(names(x$theta)[1:p1]) ){
-      warning( "Names of theta are null, reverting to indices." )
-      plot.names <- FALSE
-    }
-    if( plot.names==TRUE ){
-      theta.names <- names(x$theta)[1:p1]
-      axis(side=1, at=1:p1, labels=theta.names , ...)
-    } else{
-      axis(side=1, at=1:p1, labels=1:p1 , ...)
-    }
+    ## PLOT FOR SIMPLE / UMBRELLA ORDERS
+    if( !tree ){
+      # The initial plot of the points
+      plot( 1:p1 , theta1 , cex=cex , pch=pch , bg=bg ,
+          ylim = ylim , xaxt='n' , xlab = xlab , ylab = ylab, ...)
       
-    # Connect the contrasts with solid/dashed lines
-    for( i in 1:r){  
-      idx <- which( A[i,] !=0 )
-      if( x$p.value.ind[i]  > alpha ){ lty <- 1 }
-      if( x$p.value.ind[i] <= alpha ){ lty <- 2 }
-      points( idx , theta[idx] , lty=lty , lwd=2 , type="l")
+      axis(side=1, at=1:p1, labels=names(theta1), ...)
+  
+      # Connect the contrasts with solid/dashed lines
+      for( ii in 1:r){  
+        idx <- A[ii,]
+        if( object$p.value.ind[ii]  > alpha ){ lty <- 1 }
+        if( object$p.value.ind[ii] <= alpha ){ lty <- 2 }
+        points( idx , theta[idx] , lty=lty , lwd=2 , type="l")
+      }
+  
+      ## Add the CIs if necessary
+      if( ci ){
+        for( ii in 1:p1){
+          points( c(ii,ii)  , c(CIs[ii,1], CIs[ii,2]) , type="l"  )
+          points( c(ii-ci.wd, ii+ci.wd)  , c(CIs[ii,1], CIs[ii,1]) , type="l"  )
+          points( c(ii-ci.wd, ii+ci.wd)  , c(CIs[ii,2], CIs[ii,2]) , type="l"  )        
+        }    
+      }
+      
+      # Replot the pointsso the circles are filled
+      points( 1:p1 , theta[1:p1] , cex=cex , pch=pch , bg=bg )
     }
     
-    ## Add the CIs if necessary
-    if( ci.wd>0 ){
-      for( i in 1:p1){        
-        points( c(i,i) , c(theta.lcl[i],theta.ucl[i]) , type="l"  )
-        points( c(i-ci.wd,i+ci.wd) , c(theta.lcl[i],theta.lcl[i]) , type="l"  )
-        points( c(i-ci.wd,i+ci.wd) , c(theta.ucl[i],theta.ucl[i]) , type="l"  )        
-      }    
+    if( tree ){
+      ## MAKE THE CODE FOR A SIMPLE TREE PLOT HERE.      
+      plot(x=1, y=0, col=0, ylim=ylim, xlim=c(0.9,2.1), xlab="", ylab="Estimated Coefficient", xaxt="n")
+      axis(side=1, at=c(1,1.78), labels=c("Control (Node)" , "Treatment") )
+      node <- object$order$node
+      
+      legend( 0.86, theta1[node]+0.35, names(theta1)[node] ,cex=.8, bty='n' ) 
+      
+      for( ii in (1:p1)[-node] ){
+          legend(   1.77    , theta1[ii]+0.15, names(theta1)[ii] ,cex=.8, bty='n' ) 
+          points( c(1,1.78) , theta1[c(node,ii)] , col=1 , type="l" , lwd=2 , lty=(1 + 1*(object$p.value.ind[ii-1] < alpha)) )
+          points( c(1,1.78) , theta1[c(node,ii)] , col=1 , cex=1.5 , pch=21 , bg="white" )        
+      }
     }
     
-    # Replot the pointsso the circles are filled
-    points( 1:p1 , theta[1:p1] , cex=cex , pch=pch , bg=bg )
     
     ## Put a legend on the plot if requested
-    if( place.leg=="below" ){
+    if( legendx=="below" ){
       safe.mar <- par( no.readonly=TRUE )$mar
       par(mar=c(0, 0, 0, 0) , ...)
       plot.new()
@@ -95,8 +110,8 @@
     } else{
       leg.texts <- c("bottom", "bottomleft", "left", "topleft",
                     "top", "topright", "right", "bottomright", "center")
-      if( place.leg %in% leg.texts){
-        legend( place.leg , legend=c("Non-significant    " , "Significant"), 
+      if( legendx %in% leg.texts){
+        legend( legendx , legend=c( paste("p >" , alpha, "  " ) , paste("p <" , alpha, "  " )), 
                 lty = c(1,2), col=1 , ncol=1 , bty ="o" , inset=inset , ...)
       }
     }

@@ -1,125 +1,332 @@
 
-clme <- function( x=NULL , theta=numeric(0), ssq=numeric(0), tsq=numeric(0), 
-                  cov.theta=matrix(numeric(0)), ts.glb=numeric(0), 
-                  ts.ind=numeric(0), p.value=numeric(0), p.value.ind=numeric(0), 
-                  constraints=list(), method=character(0), est.order=character(0) ){
+
+clme <-
+function( formula, data, gfix=NULL, constraints=list(),
+          nsim=1000, tsf=lrt.stat, tsf.ind=w.stat.ind, mySolver="LS", 
+          verbose=c(FALSE,FALSE,FALSE), seed=NULL, levels=NULL, ncon=1, ...
+          ){
   
-  if( is.clme(x) ){
-    return(x)
-  } else{  
-        
-    result <- list()
-    
-    result$theta       <- theta
-    result$ssq         <- ssq
-    result$tsq         <- tsq
-    result$cov.theta   <- cov.theta
-    result$ts.glb       <- ts.glb
-    result$ts.ind       <- ts.ind
-    result$p.value     <- p.value
-    result$p.value.ind <- p.value.ind
-    result$constraints <- constraints
-    result$method      <- method
-    result$est.order   <- est.order
-    
-    class(result) <- "clme"
-    return(result)
-    
-  }
-}
-
-
-
-is.clme <- function(x) inherits(x, "clme")
-
-
-
-
-as.clme <- function( x , ... ){
+  cc       <- match.call( expand.dots=TRUE )  
   
-  if( is.clme(x) ){
-    return(x)
-  } else{
-    
-    err.flag  <- 0
-    flagTheta <- flagSsq <- flagTsq <- flagCov <- flagW1 <- flagW2 <- flagP1 <- flagP2 <- flagConst <- ""
-    
-    if( !is.numeric(x$theta) ){
-      err.flag  <- 1
-      flagTheta <- " theta must be numeric\n"
-      x$theta   <- numeric(0)
-    }
-    
-    if( !is.numeric(x$ssq) ){
-      err.flag <- 1
-      flagSsq  <- " ssq must be numeric (scaler or vector)\n"
-      x$ssq    <- numeric(0)
-    } 
-    
-    if( !is.null(x$tsq) & !is.numeric(x$tsq) ){
-      err.flag <- 1
-      flagTsq  <- " if present, tau must be numeric (scaler or vector)\n"
-      x$tsq    <- NULL
-    }
-    
-    if( !is.matrix(x$cov.theta) || !is.numeric(x$cov.theta) ||
-          nrow(x$cov.theta) != ncol(x$cov.theta) ||
-          nrow(x$cov.theta) != length(x$theta)   ||
-          sum(sum(abs(x$cov.theta - t(x$cov.theta)))) > sqrt(.Machine$double.eps) ){
-      err.flag    <- 1
-      flagCov     <- " cov.theta must be square, symmetric, numeric matrix with dimensions equal to length of theta\n"
-      x$cov.theta <- matrix( numeric(0) , nrow=length(x$theta) , ncol=length(x$theta) )
-    }
-    
-    if( !is.numeric(x$ts.glb) ){
-      err.flag <- 1
-      flagW1   <- " ts.glb must be numeric\n"
-      x$ts.glb  <- numeric(0)
-    } 
-    
-    if( !is.numeric(x$ts.ind) ){
-      err.flag <- 1
-      flagW2   <- " ts.ind must be numeric (scaler or vector)\n"
-      x$ts.ind  <- numeric(0)
-    }
-    
-    if( !is.numeric(x$p.value) || length(x$p.value) != length(x$ts.glb) ){
-      err.flag   <- 1
-      flagP1     <- " p.value must be numeric and of same length as ts.glb\n"
-      x$p.value  <- numeric(0)
-    } 
-    
-    if( !is.numeric(x$p.value.ind) || length(x$p.value.ind) != length(x$ts.ind) ){
-      err.flag       <- 1
-      flagP2         <- " p.value.ind must be numeric and of same length as ts.ind\n"
-      x$p.value.ind  <- numeric(0)
-    } 
-    
-    if( !is.list(x$constraints) ){
-      err.flag        <- 1
-      flagConst       <- " constraints must be list\n"
-      x$constraints   <- list( A=matrix( numeric(0) ) )
+  if( ncon==1 & !is.null(levels) ){
+    if( is.list(levels) ){
+      idx        <- levels[[1]]
+      xlev       <- levels[[2]]
+      data[,idx] <- factor( data[,idx] , levels=xlev )
     } else{
-      cnames <- names(x$constraints)
-      if( sum(cnames=="A") != 1 ){
-        err.flag        <- 1
-        flagConst       <- " constraints must contain element A\n"
-        x$constraints$A <- matrix( numeric(0) , nrow=length(x$ts.ind ))
-      }
+      xlev       <- levels
+    }
+    idx
+  } else{
+    xlev <- NULL
+  }
+  
+  mmat     <- model_terms_clme( formula, data, ncon )
+  formula2 <- mmat$formula
+  Y  <- mmat$Y
+  P1 <- mmat$P1
+  X1 <- mmat$X1
+  X2 <- mmat$X2
+  U  <- mmat$U
+  
+  if( is.null(xlev) ){
+    xlev <- colnames(X1)
+  } else{
+    colnames(X1) <- xlev
+  }
+  
+  if( is.null(gfix) ){
+    gfix <- rep("Residual", nrow(X1)) 
+  } else{
+    data <- with( data, data[order(gfix),])
+  }
+  Nks <- table(gfix)
+  
+  if( !is.null(U) ){
+    if( !is.null(mmat$REidx) ){
+      Qs        <- table( mmat$REidx )
+      names(Qs) <- mmat$REnames
+    } else{
+      Qs  <- table( rep("tsq", ncol(U)) )
+    }    
+  } else{
+    Qs <- NULL
+  }
+  
+  # If only one element for verbose specified, fill the rest with FALSEs
+  if( length(verbose)<3 ){
+    verbose <- c(verbose, rep(FALSE, 3-length(verbose) ) )
+  }  
+  
+  ## Assess the constraints
+  cust.const <- is.matrix( constraints$A )
+  prnt_warn <- ""
+  
+  if( cust.const == TRUE ){
+    if( !is.numeric(constraints$A) ){
+      stop( "'constraints$A' must be numeric" )
+    }    
+  } else {
+    
+    # Constraints are non-null, but A and B are not provided
+    # Determine which other elements are missing/needed
+    
+    if( is.null(constraints$order) ){
+      prnt_warn <- paste( prnt_warn, "\n-'constraints$order' is NULL, program will run search for ''simple'' and ''umbrella'' orders")
+      constraints$order <- c("simple" , "umbrella" )      
     }
     
-    
-    if( err.flag==1 ){
-      err.mssg <- paste( "coercing 'x' to class 'clme' produced errors: \n", 
-                         flagTheta, flagSsq, flagTsq, flagCov, flagW1,
-                         flagW2, flagP1, flagP2, flagConst, "output may not be valid." , sep = "")
-      # warning(warn, sys.call(-1))
-      warning( err.mssg )
+    if( is.null(constraints$node) ){
+      prnt_warn <- paste( prnt_warn, "\n'constraints$node' is NULL, program will run search for node")
+      constraints$node <- 1:P1
+    } else{
+      search.node <- FALSE
     }
     
-    class(x) <- "clme"
-    return(x)
+    if( is.null(constraints$decreasing) ){
+      prnt_warn <- paste( prnt_warn, "\n'constraints$decreasing' is NULL, program will run search for TRUE and FALSE")      
+      constraints$decreasing <- c(TRUE,FALSE)      
+    }
+  }
+  
+  ## Make sure test stat function is okay
+  if( is.function(tsf)==FALSE ){
+    stop("'tsf' is not a valid function")
+  }
+  if( is.function(tsf.ind)==FALSE ){
+    stop("'tsf.ind' is not a valid function")
+  }
+  
+  ## Revert to LRT if necessary
+  if( cust.const==TRUE & identical( tsf , w.stat ) & is.null(constraints$B) ){
+    prnt_warn <- paste( prnt_warn, "\nWilliams type statistic selected with custom constraints, but 
+              'constraints$B' is NULL. Reverting to LRT statistic")
+    tsf <- lrt.stat
+  }
+    
+  
+  ## Set up search grid if using defaults
+  if( cust.const==FALSE ){
+    search.grid <- expand.grid( constraints$order , 
+                                constraints$decreasing ,
+                                constraints$node )  
+    search.grid[,1] <- as.character(search.grid[,1])
+    
+    # Remove duplicates / extraneous
+    # "simple" doesn't need node
+    idx         <- 1*(search.grid[,1]=="simple"   &  search.grid[,3] > 1)
+    search.grid <- search.grid[ idx==0 , , drop=FALSE]
+    
+    # "umbrella" with node=1 or node=P1 is covered by simple order
+    if( sum(constraints$order=="simple") >= 1 ){
+      idx <- 1*((search.grid[,1]=="umbrella" & search.grid[,3] == 1) + 
+                (search.grid[,1]=="umbrella" & search.grid[,3] == P1))
+      search.grid <- search.grid[ idx==0 , , drop=FALSE]
+    } else{
+      idx <- 1*(search.grid[,1]=="umbrella" & search.grid[,3] == 1)
+      search.grid[idx,1] <- rep( "simple" , sum(idx) )
+      idx <- 1*(search.grid[,1]=="umbrella" & search.grid[,3] == P1)
+      search.grid <- search.grid[ idx==0 , , drop=FALSE]
+    }
+    
+    # Move simple.tree to the bottom
+    idx <- search.grid[,1]=="simple.tree"
+    if( sum(idx)>0 ){
+      search.grid <- rbind( search.grid[idx==0, , drop=FALSE] ,
+                            search.grid[idx==1, , drop=FALSE] )
+    }
+    
+    ## A check for duplicate rows here may be wise
+    MNK <- dim( search.grid )[1]  
+    
+  } else{
+    MNK <- 1
+    loop.const <- est.const <- constraints
+  }
+  
+  
+  ##
+  ## End preparation steps, begin the analysis
+  ##
+  
+  ## Obtain tau if needed
+  if( is.null(U)==FALSE ){
+    mq.phi <- minque( Y=Y , X1=X1 , X2=X2 , U=U , Nks=Nks , Qs=Qs ,
+                      verbose=verbose[2], ... )
+  } else{
+    mq.phi <- NULL
+  }
+  
+  ## EM for the observed data
+  if( verbose[1]==TRUE ){
+    print( paste( "Starting EM Algorithm for observed data." , sep=""))
+  }
+  
+  ## Loop through the search grid
+  est.order <- NULL
+  ts.max    <- -Inf
+
+  
+  for( mnk in 1:MNK ){
+    
+    if( cust.const==FALSE ){
+      grid.row <- list( order     = search.grid[mnk,1], 
+                        node      = search.grid[mnk,3], 
+                        decreasing= search.grid[mnk,2])       
+      loop.const <- create.constraints( P1=ncol(X1), constraints=grid.row  )
+    }
+        
+    clme.temp <- clme_em( Y=Y, X1=X1, X2=X2, U=U, Nks=Nks, 
+                          Qs=Qs, constraints=loop.const, mq.phi=mq.phi,
+                          tsf=tsf, tsf.ind=tsf.ind, mySolver=mySolver,
+                          verbose=verbose[3], ... )    
+    
+    # If global test stat is larger, update current estimate of order  
+    if( cust.const==FALSE ){
+      update.max <- (mnk==1) + (clme.temp$ts.glb > ts.max)
+    } else{
+      update.max <- 1
+    }
+    
+    if( update.max > 0 ){
+      ts.max    <- clme.temp$ts.glb
+      clme.out  <- clme.temp
+      est.order <- mnk
+    }
     
   }
-}
+  
+  if( cust.const==FALSE ){
+    grid.row <- list( order     = search.grid[est.order,1], 
+                      node      = search.grid[est.order,3],
+                      decreasing= search.grid[est.order,2]) 
+    est.const <- create.constraints( P1=ncol(X1), constraints=grid.row  ) 
+  } else{
+    est.const <- constraints
+  }
+  
+  ## Calculate the residuals from unconstrained model
+  mr <- clme_resids( formula=formula, data=data, gfix=gfix, ncon=ncon )
+  
+  if( nsim > 0 ){
+    ## Obtain bootstrap samples      
+    Y.boot <- resid_boot( formula=formula, data=data, gfix=gfix, 
+                          eps=mr$PA, xi=mr$xi, ssq=mr$ssq, tsq=mr$tsq, 
+                          cov.theta=mr$cov.theta, nsim=nsim, 
+                          theta=clme.out$theta.null, mySolver=mySolver,
+                          seed=seed, null.resids=FALSE, ncon=ncon, ...  )
+        
+    ## EM for the bootstrap samples    
+    p.value  <- rep( 0 , length(clme.out$ts.glb) )
+    pval.ind <- rep( 0 , dim(est.const$A)[1] )
+    
+    mprint <- round( seq( 1 , round(nsim*0.9), length.out=10 ) )
+    
+    for( m in 1:nsim ){
+      
+      if( verbose[1]==TRUE & (m %in% mprint) ){
+        print( paste( "Bootstrap Iteration " , m , " of " , nsim , sep=""))
+      }
+      
+      ## Loop through the search grid
+      ts.boot <- -Inf
+      
+      for( mnk in 1:MNK ){
+        if( cust.const==FALSE ){
+          grid.row <- list( order=search.grid[mnk,1], node=search.grid[mnk,3],
+                            decreasing=search.grid[mnk,2] )
+          loop.const <- create.constraints( P1=ncol(X1), constraints=grid.row )
+        }
+        
+        clme.temp <- clme_em( Y=Y.boot[,m], X1=X1, X2=X2, U=U, Nks=Nks,
+                              Qs=Qs, constraints=loop.const, mq.phi=mq.phi,
+                              tsf=tsf, tsf.ind=tsf.ind, mySolver=mySolver,
+                              verbose=verbose[3], ...)
+        
+        idx <- which(clme.temp$ts.glb > ts.boot)
+        if( length(idx)>0 ){
+          ts.boot[idx] <- clme.temp$ts.glb[idx]
+        }
+    
+        update.ind <- (MNK==1) + (mnk == est.order)
+        if( update.ind>0 ){
+          ts.ind.boot <- clme.temp$ts.ind 
+        }
+      }
+      p.value  <- p.value  + 1*( ts.boot    >= clme.out$ts.glb )
+      pval.ind <- pval.ind + 1*(ts.ind.boot >= clme.out$ts.ind )
+    }
+    
+    clme.out$p.value     <- p.value/nsim
+    clme.out$p.value.ind <- pval.ind/nsim
+    
+  } else{
+    clme.out$p.value     <- NA
+    clme.out$p.value.ind <- rep( NA, nrow(est.const$A) )
+  }
 
+  
+  ## Add some values to the output object
+  class(clme.out)       <- "clme"
+  clme.out$constraints  <- list( A=est.const$A, B=est.const$B )
+  clme.out$dframe        <- mmat$dframe
+  
+  names(clme.out$theta) <- c( colnames(X1), colnames(X2) )
+  names(clme.out$ssq)   <- names(Nks)
+  names(clme.out$tsq)   <- names(Qs)
+  
+  if( !is.null(levels) ){
+    names(clme.out$theta)[1:P1]        <- xlev
+    colnames(clme.out$cov.theta)[1:P1] <- xlev
+    rownames(clme.out$cov.theta)[1:P1] <- xlev
+  }
+  
+  if( is.null(U) ){
+    clme.out$residuals    <- mr$PA
+  } else{
+    clme.out$residuals    <- cbind( mr$PA, mr$SS, mr$FM )
+    colnames(clme.out$residuals) <- c("PA", "SS", "FM")
+  }
+  
+  clme.out$random.effects <- mr$xi
+
+  clme.out$gfix    <- Nks
+  clme.out$gran    <- Qs
+  clme.out$formula <- mmat$formula
+  clme.out$call    <- cc  
+  clme.out$P1      <- P1  
+  
+  ## Report the estimated order
+  clme.out$order <- list()
+  if( cust.const == TRUE ){
+    clme.out$order$estimated <- FALSE
+    clme.out$order$order     <- "custom"
+    clme.out$order$node      <- NULL
+    clme.out$order$inc.dec   <- NULL
+  } else{
+      if( MNK==1 ){
+        clme.out$order$estimated <- FALSE
+      } else{
+        clme.out$order$estimated <- TRUE
+      }
+      
+      clme.out$order$order <- est.const$order
+      clme.out$order$node  <- est.const$node  
+      
+      if( est.const$decreasing ){
+        clme.out$order$inc.dec <- "decreasing"
+      } else{
+        clme.out$order$inc.dec <- "increasing"
+      }
+      
+      
+  }
+  
+  if (verbose[1]==TRUE){
+    cat( prnt_warn )
+  }
+  
+  ## Return the output object
+  return( clme.out )
+  
+}

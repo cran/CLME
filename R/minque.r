@@ -1,6 +1,5 @@
 minque <- function( Y , X1 , X2=NULL , U=NULL , Nks=dim(X1)[1] , Qs=dim(U)[2] , 
-                    mq.eps=sqrt(.Machine$double.eps), 
-                    mq.iter=500 , verbose=FALSE ){
+                    mq.eps=0.0001, mq.iter=500 , verbose=FALSE ){
   
   if( verbose==TRUE ){
     message("Running minque to estimate tau-squared")

@@ -11,22 +11,22 @@
 }
 
 \usage{rat.blood}
-\format{A matrix containing 242 observations on 39 variables.
+\format{A frame containing 241 observations on 13 variables.
 
- \tabular{rl}{
-    [,1]   \tab ID for rat (factor). \cr
-    [,2]   \tab time period (in order, 0 , 6, 24, 48, 72, 96 hours). \cr
-    [,3]   \tab storage temperature reference (\code{''Ref''}) vs. room temperature (\code{''RT''}) \cr
-    [,4]   \tab sex, male (\code{''Male''}) vs. female (\code{''Female''}). Coded as \code{''Female''=1}. \cr
-    [,5]   \tab response variable \code{wbc}. \cr
-    [,6]   \tab response variable \code{rbc}. \cr
-    [,7]   \tab response variable \code{hgb}. \cr
-    [,8]   \tab response variable \code{hct}. \cr
-    [,9]   \tab response variable \code{spun}. \cr
-    [,10]   \tab response variable \code{mcv}. \cr
-    [,11]   \tab response variable \code{mch}. \cr
-    [,12]   \tab response variable \code{mchc}. \cr
-    [,13]   \tab response variable \code{plts}. \cr
+ \tabular{rll}{
+    [,1]  \tab id   \tab ID for rat (factor). \cr
+    [,2]  \tab time \tab time period (in order, 0 , 6, 24, 48, 72, 96 hours). \cr
+    [,3]  \tab temp \tab storage temperature reference (\code{''Ref''}) vs. room temperature (\code{''RT''}). \cr
+    [,4]  \tab sex  \tab sex, male (\code{''Male''}) vs. female (\code{''Female''}). Coded as \code{''Female''=1}. \cr
+    [,5]  \tab wbc  \tab white blood cell count (\eqn{10^3 / \mu L}{10^3 / mu L}). \cr
+    [,6]  \tab rbc  \tab red blood cell count )\eqn{10^6 / \mu L}{10^6 / mu L}). \cr
+    [,7]  \tab hgb  \tab hemoglobin concentration (g/dl). \cr
+    [,8]  \tab hct  \tab hematocrit (\%). \cr
+    [,9]  \tab spun \tab (HCT \%). \cr
+    [,10] \tab mcv  \tab MCV, a measurement of erythrocyte volume (fl). \cr
+    [,11] \tab mch  \tab mean corpuscular hemoglobin (pg). \cr     % ????
+    [,12] \tab mchc \tab mean corpuscular hemoglobin concentration (g/dl). \cr
+    [,13] \tab plts \tab platelet count (\eqn{10^3 / \mu L}{10^3 / mu L}). \cr
   }
 }
 
@@ -36,7 +36,7 @@ Cora M, King D, Betz L, Wilson R, and Travlos G (2012). Artifactual changes in S
 }
 
 \seealso{
-\code{\link{CLME-package}}, \code{\link{constrained.lme}}
+\code{\link{CLME-package}}, \code{\link{clme}}
 }
 
 \keyword{datasets}

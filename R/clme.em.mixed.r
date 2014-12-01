@@ -1,7 +1,8 @@
-clme.em.mixed <- function( method, Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
+clme_em_mixed <- function( Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
                      Qs = dim(U)[2], constraints, mq.phi = NULL, tsf = lrt.stat, 
-                     tsf.ind = w.stat.ind, pav.alg, hp=FALSE, em.iter = 500, 
-                     em.eps = sqrt(.Machine$double.eps), verbose = FALSE ){
+                     tsf.ind = w.stat.ind, mySolver="LS", em.iter = 500, 
+                     em.eps =  0.0001, verbose = FALSE, ... ){
+  
   
   if( verbose==TRUE ){
     message("Starting EM algorithm")    
@@ -17,24 +18,32 @@ clme.em.mixed <- function( method, Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
   
   X  <- as.matrix(cbind(X1, X2))
   theta.names <- NULL
-  if( is.null(colnames(X))==FALSE ){
+  if( !is.null(colnames(X)) ){
     theta.names <- colnames(X)
   }
   
   K  <- length(Nks)
   
-  # Unpack the constraints
-  A          <- constraints$A
-  B          <- constraints$B
-  decreasing <- constraints$decreasing
-  node       <- constraints$node
-  
   P1 <- dim(X1)[2]
   P2 <- dim(X2)[2]
   
+  # Unpack the constraints
+  if( is.null(constraints$A) ){
+    const <- create.constraints( P1, constraints)
+    A     <- const$A
+    Anull <- const$Anull
+    B     <- const$B
+  } else{
+    A          <- constraints$A
+    Anull      <- constraints$Anull
+    B          <- constraints$B
+    if( is.null(Anull) ){
+      Anull <- create.constraints( P1, list(order="simple", node=1, decreasing=TRUE) )$Anull
+    }
+    
+  }
+  
   # Initialize values
-  XX    <- t(X) %*% X
-  XXi   <- solve( XX )
   theta <- ginv( t(X)%*%X) %*% ( t(X)%*%Y )
   
   R   <- Y-X%*%theta
@@ -43,28 +52,17 @@ clme.em.mixed <- function( method, Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
                 N1, N2, R)
   
   ssqvec  <- rep(  ssq,Nks)  
-    
-    UU <- U %*% t(U)
-    
-    if( is.null(mq.phi) ){
-      mq.phi <- minque( Y=Y, X1=X1, X2=X2, U=U, Nks=Nks, Qs=Qs)
-    }
-    tsq    <- mq.phi[1:Q]
-    tsqvec <- rep(tsq,Qs)
-    
-    XSX <- t(X)%*%(X*ssqvec)    
-    XU  <- t( apply( (t(X)%*%(U) ) , 1 , FUN=function(x,tv){ x*sqrt(tv) } , tsqvec) )
-    XPX <- (XU%*%t(XU)) + XSX    
   
-  cov.theta <- XXi %*% (XPX) %*% XXi
   
+  if( is.null(mq.phi) ){
+    mq.phi <- minque( Y=Y, X1=X1, X2=X2, U=U, Nks=Nks, Qs=Qs)
+  }
+  tsq    <- mq.phi[1:Q]
+  tsqvec <- rep(tsq,Qs)
   
   theta1 <- theta
   ssq1   <- ssq
-  tsq1   <- tsq
-  
-  
-  
+  tsq1   <- tsq  
   
   # Being the EM Algorithm convergence loop
   CONVERGE  <- 0
@@ -108,85 +106,61 @@ clme.em.mixed <- function( method, Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
     SiR   <- R / ssqvec
     X1SiR <- t(X1) %*% SiR
 
-      X1SiU <- t(X1) %*% (U/ssqvec)  #  X1SU
-      USiR  <- t(U)  %*% SiR
-      
-      U1         <- apply( U , 2 , FUN=function(x,sq){x*sq} , 1/sqrt(ssqvec) )
-      tusu       <- t(U1) %*% U1
-      diag(tusu) <- diag(tusu) + 1/tsqvec
-      tusui      <- solve(tusu)    
-      
-      
-      #theta[1:P1]  <- theta1[ 1:P1] + ginv(t(X1)%*%SigmaI%*%X1) %*% ((t(X1)%*%PsiI)%*%R )
-      theta[1:P1]  <- theta1[1:P1] + ginv( t(X1)%*%(X1/ssqvec) ) %*% (X1SiR - X1SiU%*%(tusui%*%USiR))
-      
-      
-      if( is.null(X2)==FALSE ){
-        #theta[(P1+1):(P1+P2)] <- ( theta1[ (P1+1):(P1+P2)] + 
-        #                              ginv(t(X2)%*%SigmaI%*%X2) %*% ((t(X2)%*%PsiI)%*%R ) )
-        X2SiU <- t(X2) %*% (U/ssqvec)
-        X2SiR <- t(X2) %*% SiR
-        theta[(P1+1):(P1+P2)] <- ( theta1[(P1+1):(P1+P2)] + 
-                                     ginv(t(X2)%*%(X2/ssqvec)) %*% (X2SiR - X2SiU%*%(tusui%*%USiR)) )
-      }
+    X1SiU <- t(X1) %*% (U/ssqvec)  #  X1SU
+    USiR  <- t(U)  %*% SiR
     
+    U1         <- apply( U , 2 , FUN=function(x,sq){x*sq} , 1/sqrt(ssqvec) )
+    tusu       <- t(U1) %*% U1
+    diag(tusu) <- diag(tusu) + 1/tsqvec
+    tusui      <- solve(tusu)    
+    
+    
+    #theta[1:P1]  <- theta1[ 1:P1] + ginv(t(X1)%*%SigmaI%*%X1) %*% ((t(X1)%*%PsiI)%*%R )
+    theta[1:P1]  <- theta1[1:P1] + ginv( t(X1)%*%(X1/ssqvec) ) %*% (X1SiR - X1SiU%*%(tusui%*%USiR))
+    
+    
+    if( is.null(X2)==FALSE ){
+      #theta[(P1+1):(P1+P2)] <- ( theta1[ (P1+1):(P1+P2)] + 
+      #                              ginv(t(X2)%*%SigmaI%*%X2) %*% ((t(X2)%*%PsiI)%*%R ) )
+      X2SiU <- t(X2) %*% (U/ssqvec)
+      X2SiR <- t(X2) %*% SiR
+      theta[(P1+1):(P1+P2)] <- ( theta1[(P1+1):(P1+P2)] + 
+                                   ginv(t(X2)%*%(X2/ssqvec)) %*% (X2SiR - X2SiU%*%(tusui%*%USiR)) )
+    }
+  
     
     
     
     # Step 2b: Estimate Tau
-      # USiR  <- t(U)  %*% SiR # <-- previously calcualted
-      USiU <- t(U)  %*% (U/ssqvec)
-      UPiR <- USiR - USiU%*%(tusui%*%USiR)
-      trace.vec.tau <- (UPiR^2) - diag(USiU) + diag( USiU%*%tusui%*%USiU )
-      
-      for( q in 1:Q ){
-        # tau.idx <- Q1[q]:Q2[q]
-        #Uq      <- as.matrix( U[,tau.idx] )
-        #cq      <- dim(Uq)[2]
-        #sumdg   <- sum(diag( t(Uq)%*%( PsiI%*%R%*%t(R)%*%PsiI - PsiI )%*%Uq ))      
-        #tsq[q]  <- tsq1[q] + ((tsq1[q]^2)/cq)*sumdg
-        tau.idx <- Q1[q]:Q2[q]
-        cq      <- length(tau.idx)
-        tsq[q]  <- tsq1[q] + ((tsq1[q]^2)/cq)*sum(trace.vec.tau[tau.idx])
-      }
+    # USiR  <- t(U)  %*% SiR # <-- previously calcualted
+    USiU <- t(U)  %*% (U/ssqvec)
+    UPiR <- USiR - USiU%*%(tusui%*%USiR)
+    trace.vec.tau <- (UPiR^2) - diag(USiU) + diag( USiU%*%tusui%*%USiU )
     
-    
-    
-    XSiX <- t(X) %*% (X/ssqvec)
-    XSiY <- t(X) %*% (Y/ssqvec)
-    
-      tsqvec  <- rep(tsq,Qs)  
-      
-      XSX <- t(X)%*%(X*ssqvec)    
-      XU  <- t( apply( (t(X)%*%(U) ) , 1 , FUN=function(x,tv){ x*sqrt(tv) } , tsqvec) )
-      XPX <- (XU%*%t(XU)) + XSX  
-      
-      XSiU <- t(X) %*% (U/ssqvec)
-      USiY <- t(U) %*% (Y/ssqvec)
-      XPiX <- XSiX - XSiU%*%tusui%*%t(XSiU)
-      XPiY <- XSiY - XSiU%*%(tusui%*%USiY)
-      
-    
-    
+    for( q in 1:Q ){
+      # tau.idx <- Q1[q]:Q2[q]
+      #Uq      <- as.matrix( U[,tau.idx] )
+      #cq      <- dim(Uq)[2]
+      #sumdg   <- sum(diag( t(Uq)%*%( PsiI%*%R%*%t(R)%*%PsiI - PsiI )%*%Uq ))      
+      #tsq[q]  <- tsq1[q] + ((tsq1[q]^2)/cq)*sumdg
+      tau.idx <- Q1[q]:Q2[q]
+      cq      <- length(tau.idx)
+      tsq[q]  <- tsq1[q] + ((tsq1[q]^2)/cq)*sum(trace.vec.tau[tau.idx])
+    }
+        
+    XSiX      <- t(X) %*% (X/ssqvec)
+    tsqvec    <- rep(tsq,Qs)  
+    XSiU      <- t(X) %*% (U/ssqvec)
+    cov.theta <- solve( XSiX - XSiU%*%tusui%*%t(XSiU) )
     
     ## Apply order constraints / isotonization
-      # PAVA constraints   
-      if( method=="PAVA" ){
-        cov.theta <- XXi %*% (XPX) %*% XXi
-        theta[1:P1] <- pav.alg( theta[1:P1] , cov.theta[1:P1,1:P1,drop=FALSE] , node , decreasing , hp) 
-      } else{
-      # QPE constrained optimization   
-      Dmat  <- XPiX
-      Deigen <- eigen(Dmat)
-      if( sum(Deigen$values <= sqrt(.Machine$double.eps) ) > 0 ){
-        idx.neg.lamda <- which(Deigen$values < sqrt(.Machine$double.eps) )
-        Deigen$values[idx.neg.lamda] <- sqrt(.Machine$double.eps)
-        Dmat <- Deigen$vectors %*% diag(Deigen$values) %*% t(Deigen$vectors)
-      }
-      # dvec  <- t( t(Y)%*%PsiI%*%X )
-      dvec  <- XPiY
-      theta <- solve.QP(Dmat, dvec, t(A))$solution    
+    if( mySolver=="GLS"){
+      wts <- solve( cov.theta )[1:P1, 1:P1, drop=FALSE]
+    } else{
+      wts <- diag( solve(cov.theta) )[1:P1]
     }
+    theta[1:P1] <- activeSet(A, y = theta[1:P1], weights = wts, mySolver=mySolver  )$x
+    
     
     # Evaluate some convergence criterion
     rel.change <- abs(theta - theta1)/theta1
@@ -207,24 +181,21 @@ clme.em.mixed <- function( method, Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
   theta        <- c(theta)
   names(theta) <- theta.names
   
-    XSX <- t(X)%*%(X*ssqvec)    
-    XU  <- t( apply( (t(X)%*%(U) ) , 1 , FUN=function(x,tv){ x*sqrt(tv) } , tsqvec) )
-    XPX <- (XU%*%t(XU)) + XSX    
+  theta.null       <- theta
+  theta.null[1:P1] <- activeSet( Anull, y = theta[1:P1], weights = wts , mySolver=mySolver )$x
   
-  cov.theta <- XXi %*% (XPX) %*% XXi
-  # cov.theta <- XXi %*% ( t(X) %*% Psi %*% X ) %*% XXi  
   
   # Compute test statistic
-  ts.glb <- tsf( theta=theta, cov.theta=cov.theta, B=B, A=A, Y=Y, X1=X1, 
-                X2=X2, U=U, tsq=tsq, ssq=ssq, Nks=Nks, Qs=Qs  )
+  ts.glb <- tsf( theta=theta, theta.null=theta.null, cov.theta=cov.theta, B=B, A=A, Y=Y, X1=X1, 
+                 X2=X2, U=U, tsq=tsq, ssq=ssq, Nks=Nks, Qs=Qs  )
   
-  ts.ind <- tsf.ind(theta=theta, cov.theta=cov.theta, B=B, A=A, Y=Y, X1=X1, 
-                   X2=X2, U=U, tsq=tsq, ssq=ssq, Nks=Nks, Qs=Qs )
+  ts.ind <- tsf.ind(theta=theta, theta.null=theta.null, cov.theta=cov.theta, B=B, A=A, Y=Y, X1=X1, 
+                    X2=X2, U=U, tsq=tsq, ssq=ssq, Nks=Nks, Qs=Qs )
   
   # Return the results
-  return.obj <- list(theta=theta, ssq=ssq, tsq=tsq,
-                     cov.theta=cov.theta, ts.glb=ts.glb, ts.ind=ts.ind )
+  em.results <- list(theta=theta, theta.null=theta.null, ssq=ssq, tsq=tsq,
+                     cov.theta=cov.theta, ts.glb=ts.glb, ts.ind=ts.ind, mySolver=mySolver )
   
-  return.obj
+  return( em.results )
 
 }

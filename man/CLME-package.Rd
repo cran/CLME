@@ -5,9 +5,9 @@
 \docType{package}
 \title{ Constrained inference for linear mixed models. }
 \description{
-Implements distribution-free bootstrap methodology to conduct constrained inference on linear mixed models. Covariates and random effects are permitted but not required (i.e. fixed-effects models can be run).
+Constrained inference on linear fixed and mixed models using residual bootstrap. Covariates and random effects are permitted but not required.
 
-Appropriate credit should be given when publishing results obtained using \pkg{CLME}, or when developing other programs/packages based off of this one. The preferred citation is \bold{CITATION}. Use \code{citation(package="CLME")} for Bibtex information.
+Appropriate credit should be given when publishing results obtained using \pkg{CLME}, or when developing other programs/packages based off of this one. Use \code{citation(package="CLME")} for Bibtex information.
 
 }
 
@@ -15,12 +15,12 @@ Appropriate credit should be given when publishing results obtained using \pkg{C
 \tabular{ll}{
 Package: \tab CLME\cr
 Type:    \tab Package\cr
-Version: \tab 1.0\cr
-Date:    \tab 2014-02-20\cr
+Version: \tab 2.0\cr
+Date:    \tab 2014-11-14\cr
 License: \tab GLP-2 | GLP-3  \cr
 }
 
-This package implements the constrained linear mixed effects model described in Farnan, Ivanova, and Peddada (2014). See that paper for more details regarding the method. Here we give a brief overview of the model to define notation used throughout the manual:
+This package implements the constrained linear mixed effects model described in Farnan, Ivanova, and Peddada (2014). See that paper for more details regarding the method. Here we give a brief overview of the assumed model:
 
 \deqn{ Y = X_{1}\theta_{1} + X_{2}\theta_{2} + U\xi + \epsilon }{Y = X1*theta1 + X2*theta2 + U*xi + e}
 
@@ -42,7 +42,6 @@ Neither covariates (\eqn{X_2}{X2}) nor random effects (\eqn{U}{U}) are required 
 
 The first \eqn{c_{1}}{c1} random effects will share a common variance, \eqn{\tau^{2}_{1}}{tau1^2}, the next \eqn{c_{2}}{c2} random effects will share a common variance, and so on. Note that \eqn{c = \sum_{i=1}^{q} c_i}{c = SUM(ci), i=1,...q}. Homogeneity of variances in the random effects can be induced by letting \eqn{q=1}{q=1} (hence \eqn{c_{1}=c=ncol(U)}{c1=c=ncol(U)}).
 
-
 Similarly, the covariance matrix of \eqn{\epsilon}{e} is given by:
 
 \deqn{ \Sigma = diag\left( \sigma^{2}_{1}I_{n_{1}}, \sigma^{2}_{2}I_{n_{2}}  , \dots , \sigma^{2}_{q}I_{n_{k}} \right) }{ Sigma = diag( sigma1^2 I_n1, sigma2^2 I_n2 , ... , sigmak^2 I_nk)}
@@ -53,10 +52,11 @@ The order constraints are defined by the matrix \eqn{A}{A}. This is an \eqn{r \t
 
 \deqn{ H_{a}: A\theta > 0 }{Ha: A*theta > 0 }
 
-For several default orders (simple, umbrella, simple tree) the \eqn{A}{A} matrix can be automatically generated. Alternatively, the user may define a custom \eqn{A}{A} matrix to test other patterns among the elements of \eqn{\theta}{theta}. See \code{\link{create.constraints}} and \code{\link{constrained.lme}} for more details.
+For several default orders (simple, umbrella, simple tree) the \eqn{A}{A} matrix can be automatically generated. Alternatively, the user may define a custom \eqn{A}{A} matrix to test other patterns among the elements of \eqn{\theta}{theta}. See \code{\link{create.constraints}} and \code{\link{clme}} for more details.
 
-The primary function of \pkg{CLME} is \code{\link{constrained.lme}}. The other functions in this package may be run separately, but in general are designed for use by \code{\link{constrained.lme}}.
+For computational reasons, the implementation is not identical to the model expressed. Particularly, the fixed-effects matrix (or matrices) and the random effects matrix are assumed to be columns in a data frame, not passed as matrices. The \eqn{A}{A} matrix is not \eqn{r\ times p}{r x p}, but \eqn{r\ times 2}{r x 2}, where each row gives the indices of the constrained coefficients. See \code{\link{create.constraints}} for further explanation.
 
+The primary function of \pkg{CLME} is \code{\link{clme}}. The other functions in this package may be run separately, but in general are designed for use by \code{\link{clme}}.
 
 }
 
@@ -72,5 +72,5 @@ Farnan, L., Ivanova, A., and Peddada, S. D. (2014).
 
 \seealso{
 \code{\link{create.constraints}}, 
-\code{\link{constrained.lme}}
+\code{\link{clme}}
 }
