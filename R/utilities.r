@@ -15,7 +15,7 @@ model_terms_clme <- function( formula, data, ncon=1 ){
   
   formula3 <- update.formula( formula , . ~ . + (1|Unull) - 1)
   
-  mterms   <- lme4::lFormula( formula3, data=data )
+  suppressMessages( mterms   <- lme4::lFormula( formula3, data=data ) )
   
   Y  <- mterms$fr[,1]
   X  <- mterms$X
@@ -273,13 +273,11 @@ model.matrix.clme <- function( object, ...){
   mmat <- model_terms_clme( object$formula, object$dframe )
   X1   <- mmat$X1
   X2   <- mmat$X2
-  
-  return( cbind(X1, X2) )
-  
+  return( cbind(X1, X2) )  
 }
 
 nobs.clme <- function(object, ...){
-  nrow( model.matrix(object) )
+  nrow( model.matrix.clme(object) )
 }
 
 print.clme <- function(x, ...){
@@ -294,7 +292,7 @@ print.clme <- function(x, ...){
   
   cat( "Linear mixed model subject to order restrictions\n")
   cat( "Formula: ")
-  print( object$formula )
+  print( object$formula )  
   crit <- c(logLik.clme(object),
             AIC.clme(object),
             AIC( object, k=log(nobs.clme(object)/(2*pi)) ) )  
@@ -304,13 +302,15 @@ print.clme <- function(x, ...){
   cat( "\nlog-likelihood:", critc[1] )
   cat( "\nAIC:           ", critc[2] )
   cat( "\nBIC:           ", critc[3] )
-  cat( "\n(log-ikelihood, AIC, BIC computed under normality)")  
+  cat( "\n(log-likelihood, AIC, BIC computed under normality)")  
   
   cat( "\n\nFixed effect coefficients (theta): \n")
   print( fixef.clme(object)  )
   
   cat( "\nVariance components: \n")
   print( VarCorr.clme(object) )
+  
+  cat( "\n\nModel based on", object$nsim, "bootstrap samples." )
   
 }
 

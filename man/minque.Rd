@@ -6,7 +6,7 @@
 \usage{
 minque( Y , X1 , X2 = NULL , U = NULL , Nks = dim(X1)[1] ,
         Qs = dim(U)[2], mq.eps =  0.0001 ,
-        mq.iter = 500 , verbose = FALSE )
+        mq.iter = 500 , verbose = FALSE, ... )
 }
 
 \arguments{
@@ -19,6 +19,7 @@ minque( Y , X1 , X2 = NULL , U = NULL , Nks = dim(X1)[1] ,
   \item{mq.eps}{ criterion for convergence for the MINQUE algorithm. }
   \item{mq.iter}{ maximum number of iterations permitted for the MINQUE algorithm. }
   \item{verbose}{ if \code{TRUE}, function prints intermediate messages on progress of the MINQUE algorithm. }
+  \item{...}{space for additional arguments.}
 }
 
 \details{

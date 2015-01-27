@@ -16,7 +16,7 @@ function( formula, data, gfix=NULL, constraints=list(),
     } else{
       xlev       <- levels
     }
-    idx
+    #idx
   } else{
     xlev <- NULL
   }
@@ -294,7 +294,8 @@ function( formula, data, gfix=NULL, constraints=list(),
   clme.out$gran    <- Qs
   clme.out$formula <- mmat$formula
   clme.out$call    <- cc  
-  clme.out$P1      <- P1  
+  clme.out$P1      <- P1
+  clme.out$nsim    <- nsim
   
   ## Report the estimated order
   clme.out$order <- list()

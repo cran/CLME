@@ -7,7 +7,7 @@ function(formula, data, gfix=NULL, eps=NULL, xi=NULL, null.resids=TRUE,
   ## I should consider a way to condense this so it doesn't need to 
   ## be copied between here, clme() and clme_resids().
   ##
-  mmat     <- model_terms_clme( formula, data, ncon )
+  suppressMessages( mmat <- model_terms_clme( formula, data, ncon ) )
   formula2 <- mmat$formula
   Y  <- mmat$Y
   P1 <- mmat$P1

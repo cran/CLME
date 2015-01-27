@@ -5,7 +5,7 @@ function( formula, data, gfix=NULL, ncon=1 ){
   ## I should consider a way to condense this so it doesn't need to 
   ## be copied between here, clme() and resid_boot().
   ##
-  mmat     <- model_terms_clme( formula, data, ncon )
+  suppressMessages( mmat <- model_terms_clme( formula, data, ncon ) )
   formula2 <- mmat$formula
   Y  <- mmat$Y
   P1 <- mmat$P1
@@ -28,6 +28,7 @@ function( formula, data, gfix=NULL, ncon=1 ){
   } else{
     Qs <- NULL
   }
+  
   #############################################
   
   N  <- sum(Nks)

@@ -21,8 +21,8 @@ shiny_clme <- function(){
 ##############################################################################
 #  shinyUI(bootstrapPage())
 
-shinyUI_clme <- fluidPage(
-  
+shinyUI_clme <- fluidPage( 
+  titlePanel("Constrained Linear Mixed Effects"),
   sidebarLayout(
     sidebarPanel(
       
@@ -32,7 +32,10 @@ shinyUI_clme <- fluidPage(
       fileInput('file1', 'Data (choose CSV file)',
                 accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')
       ),
-      
+      selectInput(inputId = "dlmt",
+                  label = "Delimiter:",
+                  choices=c("Comma", "Tab") 
+      ), 
       ##
       ## Main controls
       ##
@@ -174,9 +177,18 @@ shinyUI_clme <- fluidPage(
       )
     ),
     mainPanel(
-      plotOutput(outputId = "fig1", height = "400px"),
-      verbatimTextOutput(outputId = "summary" )
-      
+      tabsetPanel(
+        tabPanel("Data Summary" , 
+                 plotOutput(outputId = "fig0", height = "650px"),
+                 tableOutput(outputId = "sum_table")
+        ),
+        tabPanel("Model Summary", 
+                 verbatimTextOutput(outputId = "summary")
+        ), 
+        tabPanel("Model Plot"   ,
+                 plotOutput(outputId = "fig1", height = "650px")
+        )
+      )
     )
   ))
 
@@ -207,7 +219,15 @@ shinyServer_clme <- function(input, output) {
         
         file1   <- input$file1[4]
         solver  <- input$solver
-        data1   <- as.matrix( read.csv( file=paste(file1) ) )
+        dlmt    <- input$dlmt
+        #data1   <- as.matrix( read.csv( file=paste(file1) ) )
+        
+        if( dlmt=="Comma"){
+          data1   <- read.csv( file=paste(file1) )
+        }
+        if( dlmt=="Tab" ){
+          data1   <- read.csv( file=paste(file1) , sep="\t")
+        }
         
         yy      <- input$yy
         p1      <- input$p1
@@ -316,7 +336,10 @@ shinyServer_clme <- function(input, output) {
         if( ncon==1 & input$xlevel1 ){
           xlev    <- parse_idx(input$xlevels)
           nlev    <- length(levels(as.factor( data1[,xlev] )))
-          xlevels <- data1[1:nlev,xlev]          
+          xlevels <- as.character( data1[1:nlev,xlev] )
+          if( any(xlevels=="") ){
+            xlevels <- xlevels[ -which(xlevels=="")]  
+          }
           data1[,idx_x1] <- factor( data1[,idx_x1], levels=xlevels )
         }
         
@@ -376,13 +399,24 @@ shinyServer_clme <- function(input, output) {
               
         ## Run the model
         data2 <- as.data.frame( data1 )
-
-        clme.results <- clme(
-          formula=formula, data=data2, gfix=gfix, constraints=constraints, nsim=nsim, 
-          verbose = c(FALSE, FALSE, FALSE), tsf=tsf, tsf.ind = w.stat.ind,
-          mySolver=mySolver, seed=seedvl, ncon=ncon,
-          em.eps=emeps, em.iter=emiter, mq.eps=mqeps, mq.iter=mqiter
-        )
+        
+        
+        if( ncon==1 & input$xlevel1 ){
+          clme.results <- clme(
+            formula=formula, data=data2, gfix=gfix, constraints=constraints, nsim=nsim, 
+            verbose = c(FALSE, FALSE, FALSE), tsf=tsf, tsf.ind = w.stat.ind,
+            mySolver=mySolver, seed=seedvl, ncon=ncon, levels=list(idx_x1, xlevels), 
+            em.eps=emeps, em.iter=emiter, mq.eps=mqeps, mq.iter=mqiter
+          )
+        } else{
+          clme.results <- clme(
+            formula=formula, data=data2, gfix=gfix, constraints=constraints, nsim=nsim, 
+            verbose = c(FALSE, FALSE, FALSE), tsf=tsf, tsf.ind = w.stat.ind,
+            mySolver=mySolver, seed=seedvl, ncon=ncon,
+            em.eps=emeps, em.iter=emiter, mq.eps=mqeps, mq.iter=mqiter
+          )
+        }
+        
         
         clme.results
         
@@ -392,51 +426,122 @@ shinyServer_clme <- function(input, output) {
     }   
   })
   
+  ##
+  ## Boxplot of the data
+  ##
+  output$fig0 <- renderPlot({
+    
+    clme_out <- clme.out()
+    dframe   <- clme_out$dframe
+    
+    if( is.factor( dframe[,2] ) ){
+      if( length(levels(dframe[,2]))==clme_out$P1 ){        
+        boxplot( dframe[,1] ~ dframe[,2],
+                 xlab=colnames(dframe)[2], ylab=colnames(dframe)[1]  )
+      }
+      
+        #if( (ncol(dframe)-1) >= clme_out$P1 ){
+        #  xx1 <- apply( dframe[,2:(clme_out$P1+1)], 2, FUN=function(x){ (max(x)==1)*(min(x)==0) }  )
+        #  
+        #}
+      
+    } else{
+      xx <- yy <- c(0,1)  
+      plot( xx, yy, xlab="", ylab="", xaxt='n', yaxt='n', main="", col=0 )
+      legend( "top", inset=0.45, box.lwd=0,
+              legend="Cannot detect appropriate plot type.\n Try making constrained variable a factor.")
+    }
+          
+  })
   
+  
+  output$sum_table <- renderTable({
+    clme_out <- clme.out()
+    dframe   <- clme_out$dframe
+    
+    funq1 <- function(x) quantile(x, 0.25 )
+    funq3 <- function(x) quantile(x, 0.75 )
+    
+    #if( is.factor( dframe[,2] )){
+    #  if( length(levels(dframe[,2]))==clme_out$P1 ){    
+        
+        
+        xbar <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN="mean")
+        ndat <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN="length")
+        stdv <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN="sd")
+        minx <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN="min")
+        maxx <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN="max")
+        medn <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN="median")
+        qrt1 <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN=funq1)
+        qrt3 <- aggregate( dframe[,1] , by=list(dframe[,2]), FUN=funq3)
+        
+        tbl1 <- cbind( ndat, xbar[,2], stdv[,2], minx[,2], qrt1[,2], medn[,2], qrt3[,2], maxx[,2] )
+        colnames(tbl1) <- c("Groups", "N", "Mean", "Std", "Min", "Q1", "Med", "Q3", "Max")
+        
+        format(tbl1, digits=3)
+        
+    #  }
+      
+      #if( (ncol(dframe)-1) >= clme_out$P1 ){
+      #  xx1 <- apply( dframe[,2:(clme_out$P1+1)], 2, FUN=function(x){ (max(x)==1)*(min(x)==0) }  )
+      #  
+      #}
+      
+      
+    #} else{
+    #  tbl1 <- data.frame(
+    #    Variable = colnames(dframe)[1],
+    #    N        = nrow(dframe),
+    #    Std      = sd(dframe[,1]),
+    #    Min      = min(dframe[,1]),
+    #    Q1       = funq1(dframe[,1])[1],
+    #    Med      = median(dframe[,1]),
+    #    Q3       = funq3(dframe[,1])[1],
+    #    Max      = max(dframe[,1])
+    #    )
+    #  rownames(tbl1) <- NULL  
+    #  format(tbl1, digits=3)
+    #}
+  })
+  
+  
+  
+  
+  
+  ##
+  ## Summarize the model
+  ##
   output$fig1 <- renderPlot({
-    
     compute2 <- input$compute2
-    
     if( compute2 > 0 ){
       isolate({
-        
-        ci    <- FALSE
+        ciwd  <- FALSE
         alpha <- 0.05
-        
         if( input$outcheck==TRUE ){
           ciwd  <- input$plotci
           alpha <- input$alpha
         }
-        
-        plot( clme.out() , ci=ci , alpha=alpha)
-
-        
+        plot( clme.out() , ci=ciwd , alpha=alpha)
       })
     }
-    
   })
   
   output$summary <- renderPrint({
-    
     compute3 <- input$compute3
-    
     if( compute3 > 0 ){
       isolate({
-        
         alpha <- 0.05        
-        
         if( input$outcheck==TRUE ){
           alpha <- input$alpha
         }
-        
         summary( clme.out() , alpha=alpha )
       })
     }
-    
   })
   
   
   ## Put all the code to run CLME inside this
+  ## That probably won't work; too much formatting and conditional
   # output$data <- renderTable({ clme.out() })
   
 }

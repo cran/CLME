@@ -42,7 +42,7 @@ summary.clme <- function( object, alpha=0.05, digits=4, ...){
   cat( "\n\nlog-likelihood:", critc[1] )
   cat( "\nAIC:           "  , critc[2] )
   cat( "\nBIC:           "  , critc[3] )
-  cat( "\n(log-ikelihood, AIC, BIC computed under normality)")  
+  cat( "\n(log-likelihood, AIC, BIC computed under normality)")  
   
   ## Tests
   est    <- fixef.clme(object)
@@ -154,7 +154,7 @@ summary.clme <- function( object, alpha=0.05, digits=4, ...){
   grow <- cbind( grow1[2:length(grow1)] , grow2)
   colnames(grow)[1] <- grow1[1]
     
-  cat( "\n\nIndividual constraints: ")
+  cat( "\n\nIndividual constraints (Williams' type tests): ")
   cat( "\n", paste(colnames(grow) , collapse="  ") )
   for( ii in 1:length(glbs) ){
     cat( "\n", paste(grow[ii,] , collapse="  ")     )
@@ -189,6 +189,7 @@ summary.clme <- function( object, alpha=0.05, digits=4, ...){
   
   cat( "\n\nParameters are ordered according to the following factor levels:\n" )
   cat( paste(  names(fixef(object))[1:object$P1], collapse=", ") )
+  cat( "\n\nModel based on", paste0(object$nsim), "bootstrap samples" )
   
 }
 
