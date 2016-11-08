@@ -44,7 +44,10 @@ shiny_clme <- function(){
 ##############################################################################
 #  shinyUI(bootstrapPage())
 
+#' CLME siny GUI: UI
 #'
+#' @description The UI for the shiny app in CLME
+#' 
 #' @rdname shiny_clme
 #' 
 #' @export
@@ -241,6 +244,10 @@ shinyUI_clme <- fluidPage(
 ##
 ##############################################################################
 
+
+#' CLME siny GUI: server
+#'
+#' @description The server for the shiny app in CLME
 #'
 #' @rdname shiny_clme
 #' 

@@ -42,12 +42,15 @@ summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ..
   if( !is.clme(object) ){ stop("'object' is not of class clme")}
   
   ## Extract some values from the fitted object
-  cust.const  <- object$cust.const
-  search.grid <- object$search.grid 
-  MNK         <- dim( search.grid )[1]  
-  if( cust.const==TRUE ){
+  cust_const  <- object$cust_const
+  all_pair    <- object$all_pair
+  
+  if( cust_const==TRUE ){
     loop.const <- object$constraints
     MNK        <- 1
+  } else{
+    search.grid <- object$search.grid 
+    MNK         <- dim( search.grid )[1]  
   }
   
   mmat <- model_terms_clme( formula(object), data=object$dframe, ncon=object$ncon )
@@ -85,7 +88,7 @@ summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ..
   
   mr <- clme_resids( formula=formula(object), data=object$dframe, 
                      gfix=object$gfix_group, ncon=object$ncon )
-    
+  
   ## This is the loop for the bootstrap simulations
   # Eventually this should be (optionally) parallelized
   if( nsim2 > 0 ){
@@ -96,7 +99,11 @@ summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ..
                           theta=object$theta.null, mySolver=object$mySolver,
                           seed=seed2, null.resids=FALSE, ncon=object$ncon  )
     
-    ## EM for the bootstrap samples    
+    ## EM for the bootstrap samples
+    TS.boot     <- matrix( 0, nrow=nsim2, ncol=length(object$ts.glb) )
+    TS.boot.ind <- matrix( 0, nrow=nsim2, ncol=nrow(est_const$A) )
+    
+    
     p.value  <- rep( 0 , length(object$ts.glb) )
     pval.ind <- rep( 0 , nrow(est_const$A) )
     
@@ -112,7 +119,7 @@ summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ..
       ts.boot <- -Inf
       
       for( mnk in 1:MNK ){
-        if( cust.const==FALSE ){
+        if( cust_const==FALSE ){
           grid.row <- list( order=search.grid[mnk,1], node=search.grid[mnk,3],
                             decreasing=search.grid[mnk,2] )
           loop.const <- create.constraints( P1=P1, constraints=grid.row )
@@ -121,7 +128,7 @@ summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ..
         clme.temp <- clme_em( Y=Y_boot[,m], X1=X1, X2=X2, U=U, Nks=object$gfix,
                               Qs=Qs, constraints=loop.const, mq.phi=mq.phi,
                               tsf=tsf, tsf.ind=tsf.ind, mySolver=object$mySolver,
-                              verbose=verbose[2], ...)
+                              verbose=verbose[2], all_pair=all_pair, dvar=object$ssq, ... )
         
         idx <- which(clme.temp$ts.glb > ts.boot)
         if( length(idx)>0 ){
@@ -132,9 +139,24 @@ summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ..
         if( update.ind>0 ){
           ts.ind.boot <- clme.temp$ts.ind 
         }
+
       }
-      p.value  <- p.value  + 1*( ts.boot    >= object$ts.glb )
-      pval.ind <- pval.ind + 1*(ts.ind.boot >= object$ts.ind )
+      
+      # Compute p-values
+      if( all_pair==TRUE ){
+        p.value  <- p.value  + 1*( ts.boot    >= abs(object$ts.glb) ) + 1*( ts.boot    <= -abs(object$ts.glb) )
+        pval.ind <- pval.ind + 1*(ts.ind.boot >= abs(object$ts.ind) ) + 1*(ts.ind.boot <= -abs(object$ts.ind) )
+      } else{
+        # The default / original: one-sided inference
+        p.value  <- p.value  + 1*( ts.boot    >= object$ts.glb )
+        pval.ind <- pval.ind + 1*(ts.ind.boot >= object$ts.ind )
+      }
+      
+      
+      # Collect test stats
+      TS.boot[m,]     <- ts.boot
+      TS.boot.ind[m,] <- ts.ind.boot
+      
     }
     
     object$p.value     <- p.value/nsim2
@@ -193,7 +215,8 @@ summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ..
 #' 
 print.summary.clme <- function( x, alpha=0.05, digits=4, ...){
   
-  object <- x
+  object   <- x
+  all_pair <- object$all_pair
   
   if( class(object)=="summary.clme" ){
     class(object) <- "clme"  
@@ -205,8 +228,9 @@ print.summary.clme <- function( x, alpha=0.05, digits=4, ...){
   print( object$formula )
   
   if( object$order$order=="unconstrained" ){
-    cat( paste0("\nNo order restrictions (two-tailed alternatives)") )
+    cat( paste0("\nNo order restrictions\n  (pairwise analysis with two-tailed alternatives)") )
   } else{
+    ## THIS CAN PROBABLY BE REARRANGED TO BE MORE STRAIGHTFORWARD
     ## Order statement
     if( object$order$order=="simple" ){
       order <- "simple order"
@@ -230,7 +254,7 @@ print.summary.clme <- function( x, alpha=0.05, digits=4, ...){
     }
   }
   
-    
+  
   ## Diagnostic criterion
   crit <- c(logLik(object),
             AIC(object),
@@ -248,82 +272,58 @@ print.summary.clme <- function( x, alpha=0.05, digits=4, ...){
   Bmat   <- object$constraints$B
 
   ## Global tests
-  if( object$order$order != "unconstrained" ){
-  if( length(object$ts.glb)>1 ){
-    glbs <- object$ts.glb
-    grow <- matrix( "NA" , nrow=length(glbs), ncol=3 )
-    
-    for( ii in 1:length(glbs) ){
-      #if( is.null(Bmat) ){
-      #  glbn <- "Unknown"
-      #  glbe <- "Unknown"
-      #} else{
-      #  glbn <- paste( tnames[Bmat[ii,2]] , "-", tnames[Bmat[ii,1]] , sep=" " )
-      #  glbe <- round( est[Bmat[ii,2]] - est[Bmat[ii,1]], digits=3 )
-      #}
-      ## Estimate will generally be NA anyway (for LRT test), just drop it.
-      # grow[ii,] <- c( glbn, glbe, round(object$ts.glb[ii],3) , sprintf("%.4f", object$p.value[ii]) )
-      if( is.null(names(glbs)) ){
-        glbn <- rep( "Unknown" , length(glbs) )
-      } else{
-        glbn <- names( object$ts.glb )
-      }
-      grow[ii,] <- c( glbn[ii], round(object$ts.glb[ii],3) , sprintf("%.4f", object$p.value[ii]) )
-      
-    }
-    
-    #colnames( grow ) <- c("Contrast", "Estimate", "Stat", "p-value")
-    #grow <- .align_table.clme( grow )
-    for( ii in 2:3){
-      val1 <- str_trim( decimal.align( grow[,ii]), side="right"  )
-      grow[,ii] <- str_pad(val1, width=max(nchar(val1)), side = "right", pad = "0")
-    }  
-    
-    #colnames( grow ) <- c("Contrast", "Estimate", "Statistic", "p-value")
-    colnames( grow ) <- c("Contrast", "Statistic", "p-value")
-    grow1 <- c(colnames(grow)[1], grow[,1])
-    grow1 <- str_pad( grow1, width=max(nchar(grow1)), side = "right", pad = " ")    
-    grow2 <- .align_table.clme( grow[,2:3,drop=FALSE] )
-    grow <- cbind( grow1[2:length(grow1)] , grow2)
-    colnames(grow)[1] <- grow1[1]
-    
-    cat( "\n\nGlobal tests: ")
-    cat( "\n", paste(colnames(grow) , collapse="  ") )
-    for( ii in 1:length(glbs) ){
-      cat( "\n", paste(grow[ii,] , collapse="  ")     )
-    }
-    
+  if( is.null(names(object$ts.glb)) ){
+    glbn <- "Unknown"
   } else{
-    ## Single global tests
-    #if( is.null(Bmat) ){
-    #  glbn <- "Unknown"
-    #  glbe <- "Unknown"
-    #} else{
-    #  glbn <- paste( tnames[Bmat[1,2]] , "-", tnames[Bmat[1,1]] )
-    #  glbe <- round( est[Bmat[1,2]] - est[Bmat[1,1]], digits=3 )
-    #}
-    
-    #grow <- cbind( glbn, glbe, round(object$ts.glb,3) , sprintf("%.4f", object$p.value) )
-    #colnames( grow ) <- c("Contrast", "Estimate", "Statistic", "p-value")
-    if( is.null(names(object$ts.glb)) ){
-      glbn <- "Unknown"
+    glbn <- names( object$ts.glb )
+  }
+  
+  
+  #if( object$order$order != "unconstrained" ){
+    if( length(object$ts.glb)>1 ){
+      glbs <- object$ts.glb
+      grow <- matrix( "NA" , nrow=length(glbs), ncol=3 )
+      
+      for( ii in 1:length(glbs) ){
+        grow[ii,] <- c( glbn[ii], round(object$ts.glb[ii],3) , sprintf("%.4f", object$p.value[ii]) )
+      }
+      
+      #colnames( grow ) <- c("Contrast", "Estimate", "Stat", "p-value")
+      #grow <- .align_table.clme( grow )
+      for( ii in 2:3){
+        val1 <- str_trim( decimal.align( grow[,ii]), side="right"  )
+        grow[,ii] <- str_pad(val1, width=max(nchar(val1)), side = "right", pad = "0")
+      }  
+      
+      colnames( grow ) <- c("Contrast", "Statistic", "p-value")
+      grow1 <- c(colnames(grow)[1], grow[,1])
+      grow1 <- str_pad( grow1, width=max(nchar(grow1)), side = "right", pad = " ")    
+      grow2 <- .align_table.clme( grow[,2:3,drop=FALSE] )
+      grow <- cbind( grow1[2:length(grow1)] , grow2)
+      colnames(grow)[1] <- grow1[1]
+      
+      cat( "\n\nGlobal tests: ")
+      cat( "\n", paste(colnames(grow) , collapse="  ") )
+      for( ii in 1:length(glbs) ){
+        cat( "\n", paste(grow[ii,] , collapse="  ")     )
+      }
+      
     } else{
-      glbn <- names( object$ts.glb )
+      
+      grow <- cbind( glbn, round(object$ts.glb,3) , sprintf("%.4f", object$p.value) )
+      
+      colnames( grow ) <- c("Contrast", "Statistic", "p-value")
+      grow1 <- c(colnames(grow)[1], grow[,1])
+      grow1 <- str_pad( grow1, width=max(nchar(grow1)), side = "right", pad = " ")    
+      grow2 <- .align_table.clme( grow[,2:3,drop=FALSE] )
+      grow <- cbind( grow1[2:length(grow1)] , grow2)
+      colnames(grow)[1] <- grow1[1]
+      
+      cat( "\n\nGlobal test: ")
+      cat( "\n", paste0(colnames(grow) , collapse="  ") )   
+      cat( "\n", paste0(grow , collapse="  ")     )
     }
-    grow <- cbind( glbn, round(object$ts.glb,3) , sprintf("%.4f", object$p.value) )
-    
-    colnames( grow ) <- c("Contrast", "Statistic", "p-value")
-    grow1 <- c(colnames(grow)[1], grow[,1])
-    grow1 <- str_pad( grow1, width=max(nchar(grow1)), side = "right", pad = " ")    
-    grow2 <- .align_table.clme( grow[,2:3,drop=FALSE] )
-    grow <- cbind( grow1[2:length(grow1)] , grow2)
-    colnames(grow)[1] <- grow1[1]
-    
-    cat( "\n\nGlobal test: ")
-    cat( "\n", paste0(colnames(grow) , collapse="  ") )   
-    cat( "\n", paste0(grow , collapse="  ")     )
-  }
-  }
+  #}
   
   ## Individual tests
   glbs <- object$ts.ind
@@ -334,12 +334,8 @@ print.summary.clme <- function( x, alpha=0.05, digits=4, ...){
     glbe <- round( est[Amat[ii,2]] - est[Amat[ii,1]], digits=3 )
     grow[ii,] <- c( glbn, glbe, round(object$ts.ind[ii],3) , sprintf("%.4f", object$p.value.ind[ii]) )
   }
-  
-  #colnames( grow ) <- c("Contrast", "Estimate", "Statistic", "p-value")
-  #grow <- .align_table.clme( grow[,2:4] )
 
   for( ii in 2:4){
-    
     if( !any(grow[,ii]==rep("NA",nrow(grow))) ){
       val1 <- str_trim( decimal.align( grow[,ii]), side="right"  )
       grow[,ii] <- str_pad(val1, width=max(nchar(val1)), side = "right", pad = "0")   
@@ -379,15 +375,17 @@ print.summary.clme <- function( x, alpha=0.05, digits=4, ...){
                        paste0(cipct, "% lower"), paste0(cipct, "% upper"))
   tvals <- .align_table.clme( tvals )
   
-  cat( "\n\nFixed effect coefficients (theta): \n")
+  cat( "\nFixed effect coefficients (theta): \n")
   cat( paste0(colnames(tvals), collapse="  ") )
   for( ii in 1:length(est) ){
     cat( "\n", paste0( c(tvals[ii,]),  collapse="  ") )
   }
-  cat( "\nStd. Errors and confidence limits based on unconstrained covariance matrix")
   
-  cat( "\n\nParameters are ordered according to the following factor levels:\n" )
-  cat( paste(  names(fixef(object))[1:object$P1], collapse=", ") )
+  if( all_pair==FALSE ){
+    cat( "\nStd. Errors and confidence limits based on unconstrained covariance matrix")
+    cat( "\n\nParameters are ordered according to the following factor levels:\n" )
+    cat( paste(  names(fixef(object))[1:object$P1], collapse=", ") )  
+  }
   cat( "\n\nModel based on", paste0(object$nsim), "bootstrap samples" )
   
 }
