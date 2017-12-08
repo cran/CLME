@@ -29,8 +29,8 @@
 #' \tabular{ll}{
 #' Package: \tab CLME\cr
 #' Type:    \tab Package\cr
-#' Version: \tab 2.0-6\cr
-#' Date:    \tab 2016-11-07\cr
+#' Version: \tab 2.0-7\cr
+#' Date:    \tab 2017-11-16\cr
 #' License: \tab GLP-3  \cr
 #' }
 #' 

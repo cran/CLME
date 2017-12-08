@@ -4,14 +4,12 @@
 \alias{model_terms_clme}
 \title{Create model matrices for \code{clme}}
 \usage{
-model_terms_clme(formula, data, ncon = 1)
+model_terms_clme(formula, data)
 }
 \arguments{
 \item{formula}{a formula defining a linear fixed or mixed effects model. The constrained effect(s) must come before any unconstrained covariates on the right-hand side of the expression. The first \code{ncon} terms will be assumed to be constrained.}
 
 \item{data}{data frame containing the variables in the model.}
-
-\item{ncon}{the number of variables in \code{formula} that are constrained.}
 }
 \value{
 A list with the elements:
@@ -49,4 +47,3 @@ model_terms_clme( mcv ~ time + temp + sex + (1|id) , data = rat.blood )
 \code{\link{CLME-package}}
 \code{\link{clme}}
 }
-

@@ -4,12 +4,14 @@
 \alias{clme}
 \title{Constrained Inference for Linear Mixed Effects Models}
 \usage{
-clme(formula, data, gfix = NULL, constraints = list(), tsf = lrt.stat,
-  tsf.ind = w.stat.ind, mySolver = "LS", all_pair = FALSE,
-  verbose = c(FALSE, FALSE, FALSE), levels = NULL, ncon = 1, ...)
+clme(formula, data = NULL, gfix = NULL, constraints = list(),
+  tsf = lrt.stat, tsf.ind = w.stat.ind, mySolver = "LS",
+  all_pair = FALSE, verbose = c(FALSE, FALSE, FALSE), ...)
 }
 \arguments{
-\item{formula}{a formula expression. The constrained effect(s) must come before any unconstrained covariates on the right-hand side of the expression. The first \code{ncon} terms will be assumed to be constrained.}
+\item{formula}{a formula expression. The constrained effect must come before any unconstrained 
+covariates on the right-hand side of the expression. The constrained effect should 
+be an ordered factor.}
 
 \item{data}{data frame containing the variables in the model.}
 
@@ -26,10 +28,6 @@ clme(formula, data, gfix = NULL, constraints = list(), tsf = lrt.stat,
 \item{all_pair}{logical, whether all pairwise comparisons should be considered (constraints will be ignored).}
 
 \item{verbose}{optional. Vector of 3 logicals. The first causes printing of iteration step, the second two are passed as the \code{verbose} argument to the functions \code{\link{minque}} and \code{\link{clme_em}}, respectively.}
-
-\item{levels}{optional list to manually specify names for constrained coefficients. See Details.}
-
-\item{ncon}{the number of variables in \code{formula} that are constrained.}
 
 \item{...}{space for additional arguments.}
 }
@@ -106,7 +104,7 @@ data( rat.blood )
 cons <- list(order="simple", decreasing=FALSE, node=1 )
 
 clme.out <- clme(mcv ~ time + temp + sex + (1|id), data=rat.blood , 
-                 constraints=cons, seed=42, nsim=10, ncon=1)
+                 constraints=cons, seed=42, nsim=10 )
 
 }
 \references{
@@ -114,4 +112,3 @@ Jelsema, C. M. and Peddada, S. D. (2016).
 CLME: An R Package for Linear Mixed Effects Models under Inequality Constraints. 
 \emph{Journal of Statistical Software}, 75(1), 1-32. doi:10.18637/jss.v075.i01
 }
-

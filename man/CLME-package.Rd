@@ -19,8 +19,8 @@ National Institute of Environmental Health Sciences (Z01 ES101744).
 \tabular{ll}{
 Package: \tab CLME\cr
 Type:    \tab Package\cr
-Version: \tab 2.0-6\cr
-Date:    \tab 2016-11-07\cr
+Version: \tab 2.0-7\cr
+Date:    \tab 2017-11-16\cr
 License: \tab GLP-3  \cr
 }
 
@@ -70,11 +70,6 @@ The creation of this package \pkg{CLME}, this manual, and the vingette were all 
 \note{
 Unless otherwise noted, Casey M. Jelsema wrote the functions in this package.
 }
-\author{
-Casey M. Jelsema <\email{casey.jelsema@gmail.com}>
-
-Shyamal D. Peddada
-}
 \references{
 Jelsema, C. M. and Peddada, S. D. (2016). 
 CLME: An R Package for Linear Mixed Effects Models under Inequality Constraints. 
@@ -84,4 +79,8 @@ Farnan, L., Ivanova, A., and Peddada, S. D. (2014).
 Linear Mixed Efects Models under Inequality Constraints with Applications.
 \emph{PLOS ONE}, 9(1). e84778. doi: 10.1371/journal.pone.0084778
 }
+\author{
+Casey M. Jelsema <\email{casey.jelsema@gmail.com}>
 
+Shyamal D. Peddada
+}

@@ -6,8 +6,7 @@
 \usage{
 resid_boot(formula, data, gfix = NULL, eps = NULL, xi = NULL,
   null.resids = TRUE, theta = NULL, ssq = NULL, tsq = NULL,
-  cov.theta = NULL, seed = NULL, nsim = 1000, mySolver = "LS",
-  ncon = 1, ...)
+  cov.theta = NULL, seed = NULL, nsim = 1000, mySolver = "LS", ...)
 }
 \arguments{
 \item{formula}{a formula expression. The constrained effect(s) must come before any unconstrained covariates on the right-hand side of the expression. The first \code{ncon} terms will be assumed to be constrained.}
@@ -36,8 +35,6 @@ resid_boot(formula, data, gfix = NULL, eps = NULL, xi = NULL,
 
 \item{mySolver}{solver to use, passed to \code{activeSet}.}
 
-\item{ncon}{the number of variables in \code{formula} that are constrained.}
-
 \item{...}{space for additional arguments.}
 }
 \value{
@@ -57,10 +54,9 @@ By default, homogeneous variances are assumed for the residuals and (if included
 \examples{
 data( rat.blood )
 boot_sample <- resid_boot(mcv ~ time + temp + sex + (1|id), nsim = 10, 
-                          data = rat.blood, null.resids = TRUE, ncon = 1 )
+                          data = rat.blood, null.resids = TRUE  )
 
 }
 \seealso{
 \code{\link{clme}}
 }
-

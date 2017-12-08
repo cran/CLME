@@ -15,7 +15,6 @@
 #' @param seed set the seed for the RNG.
 #' @param nsim number of bootstrap samples to use for significance testing. 
 #' @param mySolver solver to use, passed to \code{activeSet}.
-#' @param ncon the number of variables in \code{formula} that are constrained.
 #' @param ... space for additional arguments.
 #' 
 #' @details 
@@ -36,20 +35,20 @@
 #' @examples
 #' data( rat.blood )
 #' boot_sample <- resid_boot(mcv ~ time + temp + sex + (1|id), nsim = 10, 
-#'                           data = rat.blood, null.resids = TRUE, ncon = 1 )
+#'                           data = rat.blood, null.resids = TRUE  )
 #' 
 #' @export
 #' 
 resid_boot <-
 function(formula, data, gfix=NULL, eps=NULL, xi=NULL, null.resids=TRUE,
          theta=NULL, ssq=NULL, tsq=NULL, cov.theta=NULL, seed=NULL, 
-         nsim=1000, mySolver="LS", ncon=1, ... ){
+         nsim=1000, mySolver="LS", ... ){
   
   ##
   ## I should consider a way to condense this so it doesn't need to 
   ## be copied between here, clme() and clme_resids().
   ##
-  suppressMessages( mmat <- model_terms_clme( formula, data, ncon ) )
+  suppressMessages( mmat <- model_terms_clme( formula, data ) )
   formula2 <- mmat$formula
   Y  <- mmat$Y
   P1 <- mmat$P1

@@ -11,7 +11,6 @@
 #'
 #' @param formula a formula defining a linear fixed or mixed effects model. The constrained effect(s) must come before any unconstrained covariates on the right-hand side of the expression. The first \code{ncon} terms will be assumed to be constrained. 
 #' @param data data frame containing the variables in the model.
-#' @param ncon the number of variables in \code{formula} that are constrained.
 #' 
 #' 
 #' @note
@@ -49,51 +48,87 @@
 #' @importFrom lme4 lFormula
 #' @export
 #' 
-model_terms_clme <- function( formula, data, ncon=1 ){
+model_terms_clme <- function( formula, data ){
   
-  formula2 <- update.formula( formula , . ~ . - 1 )
+  cc <- match.call()
+  mf <- match.call( expand.dots = FALSE )
+  cc$formula <- mf$formula <- update.formula( formula , . ~ . - 1 )
   
-  nn    <- nrow(data)
-  Unull <- c( rep("RemoveAAA",round(nn/2)), rep("RemoveBBB", nn-round(nn/2)) )
+  m <- match( c("formula", "data"), names(mf), 0L )
+  mf <- mf[ c(1L, m) ]
+  # mf$drop.unused.levels <- TRUE
   
-  data  <- cbind( data , Unull )
+  ## Determine if random effects are present
+  any_RE <- length( lme4::findbars(formula) )
   
-  formula3 <- update.formula( formula , . ~ . + (1|Unull) - 1)
-  
-  suppressMessages( mterms   <- lme4::lFormula( formula3, data=data ) )
-  
-  Y  <- mterms$fr[,1]
-  X  <- mterms$X
-  P1 <- sum( attr(X, "assign") <= ncon )
-  X1 <- X[,     1:P1     , drop=FALSE]
-  
-  if( ncol(X) > P1 ){
-    X2 <- X[,(P1+1):ncol(X), drop=FALSE]  
+  if( any_RE==0 ){
+    ## ----- NO RANDOM EFFECTS -----
+    mf[[1L]] <- quote(stats::model.frame)
+    mf <- eval( mf, parent.frame() )
+    mt <- attr(mf, "terms")
+    
+    if( !is.ordered( mf[,2] ) ){
+      stop( "Constrained effect is not an ordered factor")
+    } else{
+      xlev <- levels( mf[,2] )
+    }
+    
+    Y  <- model.response(mf, "numeric")
+    X  <- model.matrix(mt, mf )
+    P1 <- length( unique(mf[,2]) )
+    X1 <- X[, 1:P1 , drop=FALSE]
+    if( ncol(X) > P1 ){
+      X2 <- X[,(P1+1):ncol(X), drop=FALSE]  
+    } else{
+      X2 <- NULL
+    }
+    U <- NULL
+    
+    dframe <- mf
+    
+    REnames <- NULL
+    REidx   <- NULL
+    
   } else{
-    X2 <- NULL
+    ## ----- YES RANDOM EFFECTS -----
+    mf[[1L]] <- quote( lme4::lFormula )
+    
+    suppressMessages( 
+      # clme_terms <- lme4::lFormula( formula, data=data ) 
+      clme_terms <- eval( mf, parent.frame() )
+    )
+    
+    if( !is.ordered( clme_terms$fr[,2] ) ){
+      stop( "Constrained effect is not an ordered factor")
+    } else{
+      xlev <- levels( clme_terms$fr[,2] )
+    }
+    
+    Y  <- clme_terms$fr[,1]
+    X  <- clme_terms$X
+    P1 <- length( unique(clme_terms$fr[,2]) )
+    X1 <- X[, 1:P1 , drop=FALSE]
+    
+    if( ncol(X) > P1 ){
+      X2 <- X[,(P1+1):ncol(X), drop=FALSE]  
+    } else{
+      X2 <- NULL
+    }
+    
+    U  <- t( as.matrix(clme_terms$reTrms$Zt) )
+    
+    dframe  <- clme_terms$fr
+    REnames <- colnames(clme_terms$reTrms$flist)
+    REidx   <- clme_terms$reTrms$Lind
+    
   }
   
-  U            <- t( as.matrix(mterms$reTrms$Zt) )
-  dframe       <- mterms$fr
-  dframe$Unull <- NULL
+  ##############################
+  return_obj <- list( Y=Y , X1=X1 , X2=X2 , P1=P1 , U=U , formula=cc$formula, 
+                      dframe=dframe ,  REidx=REidx , REnames=REnames, xlev=xlev )
   
-  if( ncol(U)==2 ){
-    mmat <- list( Y=Y, X1=X1, X2=X2, P1=P1, U=NULL, formula=formula2, dframe=dframe, 
-                  REidx=NULL, REnames=NULL )
-  } else{
-    drop.col <- which( colnames(U) %in% c("RemoveAAA","RemoveBBB") )
-    drop.nam <- which( colnames(mterms$reTrms$flist)=="Unull" )
-    
-    U <- U[, -drop.col]
-    
-    REnames <- colnames(mterms$reTrms$flist)[-drop.nam]
-    REidx   <- mterms$reTrms$Lind[-drop.col]
-    
-    mmat <- list( Y=Y, X1=X1, X2=X2, P1=P1, U=U, formula=formula2, dframe=dframe, 
-                  REidx=REidx, REnames=REnames )
-  }
+  return( return_obj )
   
-  return( mmat )
   
 }
 
@@ -708,51 +743,6 @@ logLik.summary.clme <- function( object, ...){
   logLik(object, ...)
 }
 
-#' Extracts the model frame
-#'
-#' @description
-#' Extracts the model frame from objects of class \code{clme}. 
-#' 
-#' @param formula a formula expression.
-#' @param ... space for additional arguments
-#' 
-#' 
-#' @return
-#' Returns a data frame with the variables in the model.
-#' 
-#' 
-#' @seealso
-#' \code{\link{CLME-package}}
-#' \code{\link{clme}}
-#' 
-#' @examples
-#' \dontrun{
-#' data( rat.blood )
-#' model.frame.clme( mcv ~ time + temp + sex + (1|id), data = rat.blood )
-#' }
-#' @method model.frame clme
-#' @export
-#' 
-model.frame.clme <- function( formula , ...){
-  ## Return the data frame
-  mmat     <- model_terms_clme( formula, ... )  
-  return( mmat$dframe )
-}
-
-#' Extracts the model frame
-#' 
-#' @rdname model.frame.clme
-#' 
-#' @seealso
-#' \code{\link{model.frame.clme}} 
-#' 
-#' @method model.frame summary.clme
-#' @export
-#' 
-model.frame.summary.clme <- function( formula, ...){
-  class(object) <- "clme"
-  model.frame(formula, ...)
-}
 
 
 

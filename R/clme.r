@@ -5,7 +5,9 @@
 #'
 #' @rdname clme
 #'
-#' @param formula a formula expression. The constrained effect(s) must come before any unconstrained covariates on the right-hand side of the expression. The first \code{ncon} terms will be assumed to be constrained.
+#' @param formula a formula expression. The constrained effect must come before any unconstrained 
+#'                covariates on the right-hand side of the expression. The constrained effect should 
+#'                be an ordered factor.
 #' @param data data frame containing the variables in the model. 
 #' @param gfix optional vector of group levels for residual variances. Data should be sorted by this value.
 #' @param constraints optional list containing the constraints. See Details for further information. 
@@ -14,8 +16,6 @@
 #' @param mySolver solver to use in isotonization (passed to \code{activeSet}). 
 #' @param all_pair logical, whether all pairwise comparisons should be considered (constraints will be ignored).
 #' @param verbose optional. Vector of 3 logicals. The first causes printing of iteration step, the second two are passed as the \code{verbose} argument to the functions \code{\link{minque}} and \code{\link{clme_em}}, respectively. 
-#' @param levels optional list to manually specify names for constrained coefficients. See Details.
-#' @param ncon the number of variables in \code{formula} that are constrained.
 #' @param ... space for additional arguments.
 #'
 #'
@@ -89,7 +89,7 @@
 #' cons <- list(order="simple", decreasing=FALSE, node=1 )
 #' 
 #' clme.out <- clme(mcv ~ time + temp + sex + (1|id), data=rat.blood , 
-#'                  constraints=cons, seed=42, nsim=10, ncon=1)
+#'                  constraints=cons, seed=42, nsim=10 )
 #' 
 #' @references
 #' Jelsema, C. M. and Peddada, S. D. (2016). 
@@ -100,31 +100,27 @@
 #' @export
 #' 
 clme <-
-function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.stat.ind, 
-          mySolver="LS", all_pair=FALSE, verbose=c(FALSE,FALSE,FALSE), levels=NULL, ncon=1, ... ){
+function( formula, data=NULL, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.stat.ind, 
+          mySolver="LS", all_pair=FALSE, verbose=c(FALSE,FALSE,FALSE), ... ){
+  
   
   cc <- match.call( expand.dots=TRUE )
   
-  if( ncon==1 & !is.null(levels) ){
-    if( is.list(levels) ){
-      idx        <- levels[[1]]
-      xlev       <- levels[[2]]
-      data[,idx] <- factor( data[,idx] , levels=xlev )
-    } else{
-      xlev       <- levels
-    }
-    #idx
-  } else{
-    xlev <- NULL
+  ## If provided, sort the data by gfix
+  if( !is.null(gfix)  &  !is.null(data) ){
+    data <- data[ with(data, order(gfix)), ]
   }
   
-  mmat     <- model_terms_clme( formula, data, ncon )
+  mmat     <- eval( model_terms_clme( formula, data ), parent.frame() )
+  # mmat     <- model_terms_clme( formula, data )
   formula2 <- mmat$formula
   Y  <- mmat$Y
   P1 <- mmat$P1
   X1 <- mmat$X1
   X2 <- mmat$X2
   U  <- mmat$U
+  xlev <- mmat$xlev
+  ncon <- 1
   
   if( is.null(xlev) ){
     xlev <- colnames(X1)
@@ -173,7 +169,6 @@ function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.
       stop( "'constraints$A' must be numeric" )
     }    
   } else {
-    
     # Constraints are non-null, but A and B are not provided
     # Determine which other elements are missing/needed
     
@@ -197,10 +192,10 @@ function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.
   
   ## Make sure test stat function is okay
   if( is.function(tsf)==FALSE ){
-    stop("'tsf' is not a valid function")
+    stop("'tsf' is not a function")
   }
   if( is.function(tsf.ind)==FALSE ){
-    stop("'tsf.ind' is not a valid function")
+    stop("'tsf.ind' is not a function")
   }
   
   ## Revert to LRT if necessary
@@ -220,20 +215,27 @@ function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.
     
     # Remove duplicates / extraneous
     # "simple" doesn't need node
-    idx         <- 1*(search.grid[,1]=="simple"   &  search.grid[,3] > 1)
-    search.grid <- search.grid[ idx==0 , , drop=FALSE]
+    # idx         <- 1*(search.grid[,1]=="simple"   &  search.grid[,3] > 1)
+    # search.grid <- search.grid[ idx==0 , , drop=FALSE]
+    idx <- 1*(search.grid[,1]=="simple" )
+    search.grid[idx==1,3] <- 0
     
-    # "umbrella" with node=1 or node=P1 is covered by simple order
-    if( sum(constraints$order=="simple") >= 1 ){
-      idx <- 1*((search.grid[,1]=="umbrella" & search.grid[,3] == 1) + 
-                (search.grid[,1]=="umbrella" & search.grid[,3] == P1))
-      search.grid <- search.grid[ idx==0 , , drop=FALSE]
-    } else{
-      idx <- 1*(search.grid[,1]=="umbrella" & search.grid[,3] == 1)
-      search.grid[idx,1] <- rep( "simple" , sum(idx) )
-      idx <- 1*(search.grid[,1]=="umbrella" & search.grid[,3] == P1)
-      search.grid <- search.grid[ idx==0 , , drop=FALSE]
-    }
+    # Detect any umbrella that match simple order
+    repl_row1 <- data.frame( Var1="simple", Var2=FALSE, Var3=1 )  # simple INCREASING = umbrella INC_1 and DEC_P1
+    repl_row2 <- data.frame( Var1="simple", Var2=TRUE,  Var3=1 )  # simple DECREASING = umbrella INC_P1 and DEC_1
+    
+    repl_row1$Var1 <- as.character( repl_row1$Var1 )
+    repl_row2$Var1 <- as.character( repl_row2$Var1 )
+    
+    idx <- 1*( (search.grid[,1]=="umbrella" & search.grid[,2] == FALSE & search.grid[,3] ==  1 ) + 
+               (search.grid[,1]=="umbrella" & search.grid[,2] == TRUE  & search.grid[,3] == P1 ) )
+    
+    if( sum(idx)>1 ){ search.grid[ idx==1, ] <- repl_row1 }
+    
+    idx <- 1*( (search.grid[,1]=="umbrella" & search.grid[,2] == FALSE & search.grid[,3] == P1 ) + 
+                 (search.grid[,1]=="umbrella" & search.grid[,2] == TRUE  & search.grid[,3] ==  1 ) )
+    if( sum(idx)>1 ){ search.grid[ idx==1, ] <- repl_row2 }
+    
     
     # Move simple.tree to the bottom
     idx <- search.grid[,1]=="simple.tree"
@@ -242,8 +244,9 @@ function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.
                             search.grid[idx==1, , drop=FALSE] )
     }
     
-    ## A check for duplicate rows here may be wise
-    MNK <- dim( search.grid )[1]  
+    ## Remove duplicate rows
+    search.grid <- unique( search.grid )
+    MNK         <- dim( search.grid )[1]
     
   } else{
     MNK <- 1
@@ -310,14 +313,18 @@ function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.
     est_const <- constraints
   }
   
+  
+  #constraints$A <- est_const$A
+  #constraints$B <- est_const$B
+  
   ## Calculate the residuals from unconstrained model
-  mr <- clme_resids( formula=formula, data=data, gfix=gfix, ncon=ncon )
+  mr <- clme_resids( formula=formula, data=mmat$dframe, gfix=gfix )
 
   ## Add some values to the output object
   class(clme.out)       <- "clme"
   clme.out$call         <- cc  
   clme.out$formula      <- mmat$formula
-  clme.out$constraints  <- list( A=est_const$A, B=est_const$B )
+  clme.out$constraints  <- est_const
   clme.out$dframe       <- mmat$dframe
   
   names(clme.out$theta) <- c( colnames(X1), colnames(X2) )
@@ -326,7 +333,7 @@ function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.
   
   clme.out$cust_const  <- cust_const
   clme.out$all_pair    <- all_pair
-  clme.out$ncon        <- ncon
+  # clme.out$ncon        <- ncon
   clme.out$tsf         <- tsf
   clme.out$tsf.ind     <- tsf.ind
   
@@ -340,12 +347,6 @@ function( formula, data, gfix=NULL, constraints=list(), tsf=lrt.stat, tsf.ind=w.
   clme.out$nsim <- eval(cc$nsim)
   clme.out$seed <- eval(cc$seed)
   
-  
-  if( !is.null(levels) ){
-    names(clme.out$theta)[1:P1]        <- xlev
-    colnames(clme.out$cov.theta)[1:P1] <- xlev
-    rownames(clme.out$cov.theta)[1:P1] <- xlev
-  }
   
   if( is.null(U) ){
     clme.out$residuals    <- mr$PA

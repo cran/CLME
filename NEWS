@@ -1,8 +1,7 @@
 ===========================
 PROJECTED DEVELOPMENT:
 - Better handling of environments (currently nonexistent)
-- Better formula parsing (hopefully to remove dependence on lme4::lFormula 
-  so that I don't have to add/drop a trivial random effect).
+- Better formula parsing (hopefully to remove dependence on lme4::lFormula)
 - Improvements to GUI in shiny_clme(), particularly:
   - Plots/summary for data when main independent variable is not a factor
     or when there are multiple variables instead of a single factor
@@ -13,6 +12,13 @@ PROJECTED DEVELOPMENT:
 
 ===========================
 VERSION HISTORY:
+
+Version 2.0-7, 2017-11-16
+- Streamlined of formula parsing (less messy).
+- Fixes to plot.clme() for tree orders.
+- Fixed error in removing duplicate patterns from auto-generated contraints.
+- Added option to specify node in shiny_clme.
+- shiny_clme will produce code used to run the specified model.
 
 Version 2.0-5, 2016-11-07
 - Added reference to JSS manuscript: Jelsema and Peddada (2016)

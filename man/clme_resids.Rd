@@ -4,7 +4,7 @@
 \alias{clme_resids}
 \title{Computes various types of residuals}
 \usage{
-clme_resids(formula, data, gfix = NULL, ncon = 1)
+clme_resids(formula, data, gfix = NULL)
 }
 \arguments{
 \item{formula}{a formula expression. The constrained effect(s) must come before any unconstrained covariates on the right-hand side of the expression. The first \code{ncon} terms will be assumed to be constrained.}
@@ -12,8 +12,6 @@ clme_resids(formula, data, gfix = NULL, ncon = 1)
 \item{data}{data frame containing the variables in the model.}
 
 \item{gfix}{optional vector of group levels for residual variances. Data should be sorted by this value.}
-
-\item{ncon}{the number of variables in \code{formula} that are constrained.}
 }
 \value{
 List containing the elements \code{PA}, \code{SS}, \code{FM}, \code{cov.theta}, \code{xi}, \code{ssq}, \code{tsq}.
@@ -47,7 +45,7 @@ test statistics.
 data( rat.blood )
 cons <- list(order = "simple", decreasing = FALSE, node = 1 )
 
-clme.out <- clme_resids(mcv ~ time + temp + sex + (1|id), data = rat.blood, ncon=1 )
+clme.out <- clme_resids(mcv ~ time + temp + sex + (1|id), data = rat.blood )
 }
 
 }
@@ -55,4 +53,3 @@ clme.out <- clme_resids(mcv ~ time + temp + sex + (1|id), data = rat.blood, ncon
 \code{\link{CLME-package}}
 \code{\link{clme}}
 }
-
