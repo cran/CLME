@@ -69,16 +69,12 @@ importFrom(isotone,activeSet)
 importFrom(isotone,gpava)
 importFrom(lme4,fixef)
 importFrom(lme4,lFormula)
-if(getRversion() >= "3.3.0") {
-    importFrom(stats, sigma)
-} else {
-    importFrom(lme4, sigma)
-}
 importFrom(nlme,fixed.effects)
 importFrom(nlme,random.effects)
 importFrom(nlme,ranef)
 importFrom(openxlsx,read.xlsx)
 importFrom(prettyR,decimal.align)
+importFrom(stats,sigma)
 importFrom(stringr,str_pad)
 importFrom(stringr,str_trim)
 importFrom(utils,combn)

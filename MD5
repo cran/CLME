@@ -1,7 +1,7 @@
-614c5d108c5735065fa2817dda8c1cd9 *DESCRIPTION
-0ea302eb8648495e41377c4dd8af1c05 *NAMESPACE
-54cc591cdcf22f4cdf5ca88755730f7c *NEWS
-bebd64bd6a0329b2562996c3abe38051 *R/00Package.r
+3d98b9d104c3373e3abc9a5bac012298 *DESCRIPTION
+4a004bdec55decd31b8355f66a108c27 *NAMESPACE
+1d063da66041f095e70a9ca956518619 *NEWS
+255f89262878c835294cd69936bd46a1 *R/00Package.r
 f7056d44cb49fd97cadd1c6a9ff4be47 *R/clme.em.fixed.r
 d0774fd88a55f4b8c25ebfcab5310c72 *R/clme.em.mixed.r
 dc3a860ed8e328ca8c34ddf7d7dfb3ec *R/clme.em.r
@@ -12,9 +12,9 @@ d4e9f2a47a784833bc7b2f004084a48e *R/clme.r
 6b203b046d889c70f0959755afd4b61c *R/plot.clme.r
 2e74be49daa4588da7a493ad8c3d9d55 *R/resid_boot.r
 4955978bc9277f52abd2d781315d218a *R/shiny_clme.r
-05be63b526273c9ba198fe6e6d5f8f3b *R/summary_clme.r
+e2826efcd0428af956468bc415c7c186 *R/summary_clme.r
 ca485b90516b53cb2a33d3c74e4733fa *R/test.stat.r
-090c40edae9add3f467c1a59f350a332 *R/utilities.r
+311798c174825434a4ab7c3bea9832de *R/utilities.r
 35f45e309411f21e05ba583805cfafc9 *data/fibroid.rda
 cc2b097a1b706ca014279b87884e411b *data/rat.blood.csv.gz
 5fdbbed9039036f93056452972279d01 *data/rat.blood.rda
@@ -50,7 +50,7 @@ e5b7751f38f4b6586f90a4d9947f49a4 *man/rat.blood.Rd
 2b9d3f2840409345f6fa47d8af5f2a96 *man/resid_boot.Rd
 574053fdc69f5e18e28411b3a9be685a *man/residuals.clme.Rd
 d32f1a879ee6be7ae1dfdde02c92df7b *man/shiny_clme.Rd
-2a685903fd2ed0efa0f24c1c6e4e5eb3 *man/sigma.clme.Rd
+468130b9813627f7074c06fceeaef233 *man/sigma.clme.Rd
 b8fa04941622f419c149bdaf70e43767 *man/sigma.summary.clme.Rd
 0543d010ffdf894971547e8b5c71afac *man/summary.clme.Rd
 a2cc28ec4ab2d316357dc80f4c3e0a53 *man/vcov.clme.Rd

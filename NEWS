@@ -13,7 +13,9 @@ PROJECTED DEVELOPMENT:
 ===========================
 VERSION HISTORY:
 
-Version 2.0-7, 2017-11-16
+
+
+Version 2.0-8, 2017-11-16
 - Streamlined of formula parsing (less messy).
 - Fixes to plot.clme() for tree orders.
 - Fixed error in removing duplicate patterns from auto-generated contraints.
