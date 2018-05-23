@@ -68,7 +68,10 @@ model_terms_clme <- function( formula, data ){
     mt <- attr(mf, "terms")
     
     if( !is.ordered( mf[,2] ) ){
-      stop( "Constrained effect is not an ordered factor")
+      ## If this is stable, can remove the double xlev call and remove the else portion (same as below)
+      warning( "Constrained effect is not an ordered factor, attempting to force ordering\n Assumed order: ", paste0( levels(mf[,2]), collapse=" < "), "\n See help(ordered) for more information")
+      mf[,2] <- factor( mf[,2], ordered=TRUE )
+      xlev <- levels( mf[,2] )
     } else{
       xlev <- levels( mf[,2] )
     }
@@ -99,7 +102,10 @@ model_terms_clme <- function( formula, data ){
     )
     
     if( !is.ordered( clme_terms$fr[,2] ) ){
-      stop( "Constrained effect is not an ordered factor")
+      # stop( "Constrained effect is not an ordered factor")
+      warning( "Constrained effect is not an ordered factor, attempting to force ordering\n Assumed order: ", paste0( levels(clme_terms$fr[,2]), collapse=" < "), "\n See help(ordered) for more information")
+      clme_terms$fr[,2] <- factor( clme_terms$fr[,2], ordered=TRUE )
+      xlev <- levels( clme_terms$fr[,2] )
     } else{
       xlev <- levels( clme_terms$fr[,2] )
     }

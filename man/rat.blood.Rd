@@ -4,7 +4,7 @@
 \name{rat.blood}
 \alias{rat.blood}
 \title{Experiment on mice}
-\format{A frame containing 241 observations on 13 variables.}
+\format{A data frame containing 241 observations on 13 variables.}
 \usage{
 data(rat.blood)
 }
