@@ -13,6 +13,14 @@ PROJECTED DEVELOPMENT:
 =============================
 VERSION HISTORY:
 
+
+<<<<<<< HEAD
+
+Version 2.0-11, 2019-02-07
+- Removed a default value for seed in summary.clme
+- Fixed error from setting names to NULL
+
+
 Version 2.0-10, 2018-05-18
 - Fixed out-of-sync metadata.
 - Model now assumes ordred factor for constrained effect. If not, issues warning and attempts to force ordered=TRUE .

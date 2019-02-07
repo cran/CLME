@@ -1211,7 +1211,7 @@ VarCorr.clme <- function(x, sigma, rdig ){
     stop("'x' is not of class clme")
   } else{
     varcomps <- matrix( sqrt(c(x$tsq, x$ssq )), ncol=1 )
-    if( is.null(names(x$tsq)) ){
+    if( !is.null(x$tsq) & is.null(names(x$tsq)) ){
       names(x$tsq) <- paste0( "tau_", 1:length(x$tsq) )
     }
     rnames   <- c( "Source", names(x$tsq), names(x$ssq) )

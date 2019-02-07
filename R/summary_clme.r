@@ -37,7 +37,7 @@
 #' @method summary clme
 #' @export
 #' 
-summary.clme <- function( object, nsim=1000, seed=42, verbose=c(FALSE,FALSE), ... ){
+summary.clme <- function( object, nsim=1000, seed=NULL, verbose=c(FALSE,FALSE), ... ){
   
   if( !is.clme(object) ){ stop("'object' is not of class clme")}
   

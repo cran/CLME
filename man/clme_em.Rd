@@ -8,13 +8,15 @@
 \usage{
 clme_em_fixed(Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
   Qs = dim(U)[2], constraints, mq.phi = NULL, tsf = lrt.stat,
-  tsf.ind = w.stat.ind, mySolver = "LS", em.iter = 500, em.eps = 1e-04,
-  all_pair = FALSE, dvar = NULL, verbose = FALSE, ...)
+  tsf.ind = w.stat.ind, mySolver = "LS", em.iter = 500,
+  em.eps = 1e-04, all_pair = FALSE, dvar = NULL, verbose = FALSE,
+  ...)
 
 clme_em_mixed(Y, X1, X2 = NULL, U = NULL, Nks = dim(X1)[1],
   Qs = dim(U)[2], constraints, mq.phi = NULL, tsf = lrt.stat,
-  tsf.ind = w.stat.ind, mySolver = "LS", em.iter = 500, em.eps = 1e-04,
-  all_pair = FALSE, dvar = NULL, verbose = FALSE, ...)
+  tsf.ind = w.stat.ind, mySolver = "LS", em.iter = 500,
+  em.eps = 1e-04, all_pair = FALSE, dvar = NULL, verbose = FALSE,
+  ...)
 
 clme_em(Y, X1, X2 = NULL, U = NULL, Nks = nrow(X1), Qs = ncol(U),
   constraints, mq.phi = NULL, tsf = lrt.stat, tsf.ind = w.stat.ind,
